@@ -21,6 +21,7 @@ export function CupMatchScreen(): JSX.Element | null {
       managedSide={current.managedSide}
       homeColor={current.homeColor}
       awayColor={current.awayColor}
+      shootout={current.shootout}
       position={{ index: cupQueue.index, total }}
       onDone={advanceCupMatch}
       onSkipAll={total > 1 ? skipCupCinematics : undefined}

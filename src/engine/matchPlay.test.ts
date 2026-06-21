@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from './rng';
-import { buildMatchPlay, type PlayTeam } from './matchPlay';
+import { buildMatchPlay, buildShootout, type PlayTeam, type Side } from './matchPlay';
 
 function team(name: string): PlayTeam {
   return {
@@ -43,5 +43,31 @@ describe('buildMatchPlay', () => {
     const a = buildMatchPlay(team('A'), team('B'), 2, 1, createRng(7));
     const b = buildMatchPlay(team('A'), team('B'), 2, 1, createRng(7));
     expect(a.shots).toEqual(b.shots);
+  });
+});
+
+describe('buildShootout', () => {
+  const tally = (kicks: { team: Side; scored: boolean }[], side: Side): number =>
+    kicks.filter((k) => k.team === side && k.scored).length;
+
+  it('o lado designado sempre vence a disputa', () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const winner: Side = seed % 2 === 0 ? 'home' : 'away';
+      const loser: Side = winner === 'home' ? 'away' : 'home';
+      const kicks = buildShootout(winner, createRng(seed));
+      expect(tally(kicks, winner)).toBeGreaterThan(tally(kicks, loser));
+    }
+  });
+
+  it('é determinística: mesma seed → mesma disputa', () => {
+    expect(buildShootout('home', createRng(3))).toEqual(buildShootout('home', createRng(3)));
+  });
+
+  it('para quando decidido (não passa de 5 cobranças por lado sem necessidade)', () => {
+    const kicks = buildShootout('home', createRng(5));
+    const homeTaken = kicks.filter((k) => k.team === 'home').length;
+    const awayTaken = kicks.filter((k) => k.team === 'away').length;
+    // morte súbita pode passar de 5, mas a diferença entre cobranças é no máximo 1.
+    expect(Math.abs(homeTaken - awayTaken)).toBeLessThanOrEqual(1);
   });
 });

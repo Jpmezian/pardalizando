@@ -139,6 +139,7 @@ export function ReplayScreen(): JSX.Element {
           managedSide={cupOverlay.matches[cupOverlay.index]!.managedSide}
           homeColor={cupOverlay.matches[cupOverlay.index]!.homeColor}
           awayColor={cupOverlay.matches[cupOverlay.index]!.awayColor}
+          shootout={cupOverlay.matches[cupOverlay.index]!.shootout}
           position={{ index: cupOverlay.index, total: cupOverlay.matches.length }}
           onDone={advanceCupOverlay}
           onSkipAll={cupOverlay.matches.length > 1 ? () => setCupOverlay(null) : undefined}

@@ -141,6 +141,8 @@ export function CompetitionScreen(): JSX.Element {
                                     awayId: tie.awayId,
                                     homeGoals: tie.homeGoals,
                                     awayGoals: tie.awayGoals,
+                                    penalties: tie.penalties,
+                                    winnerId: tie.winnerId,
                                   },
                                   viewed,
                                   round.name,

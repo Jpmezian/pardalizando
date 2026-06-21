@@ -105,3 +105,55 @@ export function buildMatchPlay(
     shots: moments,
   };
 }
+
+export interface ShootoutKick {
+  team: Side;
+  scored: boolean;
+}
+
+/**
+ * Gera uma disputa de pênaltis plausível e determinística que termina com `winner`
+ * vencendo. Melhor-de-5 + morte súbita, parando quando matematicamente decidido —
+ * como na vida real. O placar é simétrico (mesma taxa de conversão), então mapeamos
+ * o vencedor natural pro lado designado (troca os lados se preciso).
+ */
+export function buildShootout(winner: Side, rng: Rng): ShootoutKick[] {
+  const MAKE_RATE = 0.75;
+  const kicks: { team: Side; scored: boolean }[] = [];
+  let homeScore = 0;
+  let awayScore = 0;
+  let homeTaken = 0;
+  let awayTaken = 0;
+
+  const decided = (): boolean => {
+    if (homeTaken <= 5 && awayTaken <= 5) {
+      const homeLeft = 5 - homeTaken;
+      const awayLeft = 5 - awayTaken;
+      if (homeScore - awayScore > awayLeft) return true; // visitante não alcança
+      if (awayScore - homeScore > homeLeft) return true; // mandante não alcança
+      if (homeTaken === 5 && awayTaken === 5) return homeScore !== awayScore;
+      return false;
+    }
+    // morte súbita: decide quando ambos bateram a mesma quantidade e diferem
+    return homeTaken === awayTaken && homeScore !== awayScore;
+  };
+
+  let turn: Side = 'home';
+  for (let i = 0; i < 40 && !decided(); i += 1) {
+    const scored = rng.next() < MAKE_RATE;
+    kicks.push({ team: turn, scored });
+    if (turn === 'home') {
+      homeTaken += 1;
+      if (scored) homeScore += 1;
+      turn = 'away';
+    } else {
+      awayTaken += 1;
+      if (scored) awayScore += 1;
+      turn = 'home';
+    }
+  }
+
+  const naturalWinner: Side = homeScore >= awayScore ? 'home' : 'away';
+  if (naturalWinner === winner) return kicks;
+  return kicks.map((kick) => ({ team: kick.team === 'home' ? 'away' : 'home', scored: kick.scored }));
+}

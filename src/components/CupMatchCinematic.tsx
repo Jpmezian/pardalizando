@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import type { MatchPlay, ShotMoment, Side } from '@/engine/matchPlay';
+import type { MatchPlay, ShootoutKick, ShotMoment, Side } from '@/engine/matchPlay';
 import type { CupMotif, CupTheme } from '@/config/cupThemes';
 
 interface CupMatchCinematicProps {
@@ -9,6 +9,7 @@ interface CupMatchCinematicProps {
   managedSide: Side | null;
   homeColor: string;
   awayColor: string;
+  shootout?: ShootoutKick[];
   position: { index: number; total: number };
   onDone: () => void;
   onSkipAll?: () => void;
@@ -263,6 +264,20 @@ function GoalCam({
         style={{ boxShadow: 'inset 0 0 80px 24px rgba(0,0,0,0.5)' }}
       />
 
+      {/* Cronômetro grande (pula de lance em lance) */}
+      {shot ? (
+        <div className="pointer-events-none absolute left-3 top-2 z-40 flex items-start">
+          <span
+            key={shot.minute}
+            className="cup-clock font-display text-5xl font-extrabold leading-none tabular-nums lg:text-6xl"
+            style={{ color: theme.accent, textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}
+          >
+            {shot.minute}
+            <span className="text-2xl lg:text-3xl">'</span>
+          </span>
+        </div>
+      ) : null}
+
       {/* Texto do desfecho (clímax) */}
       {outcome ? (
         <div className="pointer-events-none absolute inset-x-0 top-[6%] z-40 flex flex-col items-center">
@@ -313,6 +328,272 @@ function GoalCam({
   );
 }
 
+const PEN_OUTCOME: Record<'goal' | 'save' | 'miss', string> = {
+  goal: 'GOL!',
+  save: 'DEFENDEU!',
+  miss: 'PERDEU!',
+};
+
+/** Disputa de pênaltis — tensão alternada, marcadores acumulando, clímax na cobrança decisiva. */
+function PenaltyShootout({
+  theme,
+  kicks,
+  homeName,
+  awayName,
+  homeColor,
+  awayColor,
+  managedSide,
+  onDone,
+  continueLabel,
+}: {
+  theme: CupTheme;
+  kicks: ShootoutKick[];
+  homeName: string;
+  awayName: string;
+  homeColor: string;
+  awayColor: string;
+  managedSide: Side | null;
+  onDone: () => void;
+  continueLabel: string;
+}): JSX.Element {
+  // Sequência de momentos: cada cobrança = mira + chute; depois o vencedor.
+  const moments = useMemo(() => {
+    const out: Array<{ type: 'aim' | 'hit'; i: number } | { type: 'winner' }> = [];
+    kicks.forEach((_, i) => {
+      out.push({ type: 'aim', i });
+      out.push({ type: 'hit', i });
+    });
+    out.push({ type: 'winner' });
+    return out;
+  }, [kicks]);
+
+  const [m, setM] = useState(0);
+  const moment = moments[m]!;
+
+  useEffect(() => {
+    if (moment.type === 'winner') return;
+    const dur = moment.type === 'aim' ? 900 : 1500;
+    const timer = setTimeout(() => setM((v) => Math.min(v + 1, moments.length - 1)), dur);
+    return () => clearTimeout(timer);
+  }, [m, moment, moments.length]);
+
+  const resolved = (i: number): boolean => m >= i * 2 + 1;
+  const indexed = kicks.map((k, i) => ({ ...k, i }));
+  const homeKicks = indexed.filter((k) => k.team === 'home');
+  const awayKicks = indexed.filter((k) => k.team === 'away');
+  const homeScore = homeKicks.filter((k) => resolved(k.i) && k.scored).length;
+  const awayScore = awayKicks.filter((k) => resolved(k.i) && k.scored).length;
+  const suddenDeath = moment.type !== 'winner' && 'i' in moment && moment.i >= 10;
+
+  const current = moment.type !== 'winner' ? kicks[(moment as { i: number }).i] : undefined;
+  const kickingSide = current?.team ?? null;
+  const kickerColor = kickingSide === 'home' ? homeColor : kickingSide === 'away' ? awayColor : theme.accent;
+  const keeperColor = kickingSide === 'home' ? awayColor : kickingSide === 'away' ? homeColor : theme.accent;
+  const kickingName = kickingSide === 'home' ? homeName : kickingSide === 'away' ? awayName : '';
+
+  // Geometria do chute (mira no centro; chute diverge no fim).
+  const idx = moment.type !== 'winner' ? (moment as { i: number }).i : 0;
+  const side = idx % 2 === 0 ? 'left' : 'right';
+  const isSave = current ? !current.scored && idx % 3 !== 0 : false;
+  const outcome: 'goal' | 'save' | 'miss' = current?.scored ? 'goal' : isSave ? 'save' : 'miss';
+  let bx = 50;
+  let by = 78;
+  let bs = 1.15;
+  let kx = 50;
+  let ms = 480;
+  let flash = false;
+  if (moment.type === 'hit') {
+    if (outcome === 'goal') {
+      bx = side === 'left' ? 36 : 64;
+      by = 24;
+      bs = 0.55;
+      kx = side === 'left' ? 60 : 40;
+      ms = 340;
+      flash = true;
+    } else if (outcome === 'save') {
+      bx = side === 'left' ? 44 : 56;
+      by = 34;
+      bs = 0.7;
+      kx = side === 'left' ? 44 : 56;
+      ms = 300;
+    } else {
+      bx = side === 'left' ? 14 : 86;
+      by = 22;
+      bs = 0.5;
+      ms = 320;
+    }
+  }
+
+  const winnerSide: Side = homeScore > awayScore ? 'home' : 'away';
+  const winnerName = winnerSide === 'home' ? homeName : awayName;
+  const winnerColor = winnerSide === 'home' ? homeColor : awayColor;
+  const tone = (side2: Side): string => (managedSide === side2 ? 'text-accent' : 'text-white');
+
+  const markerRow = (teamKicks: typeof homeKicks, color: string): JSX.Element => (
+    <div className="flex items-center gap-1.5">
+      {teamKicks.map((k) => {
+        const done = resolved(k.i);
+        if (!done) {
+          return <span key={k.i} className="h-3.5 w-3.5 rounded-full border border-white/25" />;
+        }
+        return k.scored ? (
+          <span key={k.i} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
+        ) : (
+          <span
+            key={k.i}
+            className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/30 text-[9px] font-bold text-white/45"
+          >
+            ×
+          </span>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="relative z-10 flex flex-1 flex-col px-5 py-2 lg:px-8">
+      <div className="text-center">
+        <p className="font-display text-sm font-extrabold uppercase tracking-[0.4em]" style={{ color: theme.accent }}>
+          {theme.label} · Pênaltis
+        </p>
+        {suddenDeath ? (
+          <p className="mt-0.5 font-display text-xs font-bold uppercase tracking-broadcast text-live">
+            Morte súbita
+          </p>
+        ) : null}
+      </div>
+
+      {/* Marcadores + placar dos pênaltis */}
+      <div className="mx-auto mt-3 grid w-full max-w-2xl grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex flex-col items-end gap-1">
+          <span className={`font-display text-sm font-bold uppercase ${tone('home')}`}>{homeName}</span>
+          {markerRow(homeKicks, homeColor)}
+        </div>
+        <span className="font-display text-3xl font-extrabold tabular-nums" style={{ color: theme.accent }}>
+          {homeScore} <span className="text-white/30">×</span> {awayScore}
+        </span>
+        <div className="flex flex-col items-start gap-1">
+          <span className={`font-display text-sm font-bold uppercase ${tone('away')}`}>{awayName}</span>
+          {markerRow(awayKicks, awayColor)}
+        </div>
+      </div>
+
+      {/* Cena */}
+      <div className="flex flex-1 items-center justify-center py-3">
+        {moment.type === 'winner' ? (
+          <div className="cup-intro flex flex-col items-center text-center">
+            <span className="mb-3 h-2 w-16 rounded-sm" style={{ backgroundColor: winnerColor }} />
+            <p className="font-sans text-xs uppercase tracking-[0.4em] text-white/65">Classificado</p>
+            <h2
+              className="mt-1 font-display text-5xl font-extrabold uppercase leading-none lg:text-7xl"
+              style={{ color: winnerColor, textShadow: '0 3px 18px rgba(0,0,0,0.7)' }}
+            >
+              {winnerName}
+            </h2>
+            <p className="mt-2 font-display text-2xl font-bold uppercase" style={{ color: theme.accent }}>
+              {homeScore} × {awayScore} nos pênaltis
+            </p>
+            <button
+              type="button"
+              onClick={onDone}
+              className="mt-7 border-2 px-8 py-3 font-display text-xl font-bold uppercase tracking-wide transition-transform hover:scale-[1.03]"
+              style={{ backgroundColor: theme.accent, color: theme.accentInk, borderColor: theme.accent }}
+            >
+              {continueLabel}
+            </button>
+          </div>
+        ) : (
+          <div
+            className="relative w-full max-w-xl overflow-hidden border shadow-2xl"
+            style={{ aspectRatio: '2 / 1', borderColor: theme.accent }}
+          >
+            {/* Fundo */}
+            <div className="absolute inset-x-0 top-0 h-[40%]" style={{ background: `linear-gradient(${theme.bg}, oklch(0.28 0.03 255))` }} />
+            <div
+              className="absolute inset-x-0 bottom-0 top-[40%]"
+              style={{
+                background:
+                  'repeating-linear-gradient(0deg, oklch(0.36 0.06 152) 0 10%, oklch(0.32 0.06 152) 10% 20%)',
+              }}
+            />
+            {/* Gol */}
+            <div className="absolute left-1/2 top-[14%] z-20 -translate-x-1/2" style={{ width: '46%', height: '28%' }}>
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage:
+                    'repeating-linear-gradient(0deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 7px), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 7px)',
+                }}
+              />
+              <div className="absolute inset-x-0 top-0 h-[8%] bg-white/90" />
+              <div className="absolute inset-y-0 left-0 w-[2.5%] bg-white/90" />
+              <div className="absolute inset-y-0 right-0 w-[2.5%] bg-white/90" />
+              {flash ? (
+                <div className="cup-flash absolute inset-0" style={{ backgroundColor: theme.accent }} aria-hidden="true" />
+              ) : null}
+            </div>
+            {/* Goleiro */}
+            <div
+              className="absolute top-[26%] z-20 -translate-x-1/2"
+              style={{
+                left: `${kx}%`,
+                width: '5%',
+                height: '15%',
+                transitionProperty: 'left',
+                transitionDuration: '280ms',
+                transitionTimingFunction: 'cubic-bezier(0.3,0,0.2,1)',
+              }}
+            >
+              <div className="absolute bottom-0 h-[72%] w-full rounded-t-md" style={{ backgroundColor: keeperColor }} />
+              <div className="absolute left-1/2 top-0 h-[36%] w-[60%] -translate-x-1/2 rounded-full" style={{ backgroundColor: keeperColor }} />
+            </div>
+            {/* Bola */}
+            <div
+              className="absolute z-30 rounded-full bg-white shadow-lg ring-1 ring-black/20"
+              style={{
+                left: `${bx}%`,
+                top: `${by}%`,
+                width: '4.5%',
+                aspectRatio: '1',
+                transform: `translate(-50%, -50%) scale(${bs})`,
+                transitionProperty: 'left, top, transform',
+                transitionDuration: `${ms}ms`,
+                transitionTimingFunction: moment.type === 'hit' ? 'cubic-bezier(0.2,0,0.1,1)' : 'ease-in',
+              }}
+            />
+            <div className="pointer-events-none absolute inset-0 z-30" style={{ boxShadow: 'inset 0 0 60px 18px rgba(0,0,0,0.5)' }} />
+
+            {/* Texto */}
+            {moment.type === 'aim' ? (
+              <div className="absolute inset-x-0 bottom-[6%] z-40 flex justify-center px-3">
+                <p
+                  className="border-l-4 bg-black/55 px-4 py-1.5 font-display text-base font-bold uppercase tracking-wide text-white backdrop-blur-sm"
+                  style={{ borderColor: kickerColor }}
+                >
+                  {kickingName} cobra
+                </p>
+              </div>
+            ) : (
+              <div className="pointer-events-none absolute inset-x-0 top-[4%] z-40 flex justify-center">
+                <p
+                  key={`pen-${idx}`}
+                  className="cup-shout font-display text-5xl font-extrabold uppercase leading-none lg:text-6xl"
+                  style={{
+                    color: outcome === 'goal' ? theme.accent : 'oklch(0.97 0.006 250)',
+                    textShadow: '0 3px 16px rgba(0,0,0,0.8)',
+                  }}
+                >
+                  {PEN_OUTCOME[outcome]}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CupMatchCinematic({
   play,
   theme,
@@ -320,12 +601,14 @@ export function CupMatchCinematic({
   managedSide,
   homeColor,
   awayColor,
+  shootout,
   position,
   onDone,
   onSkipAll,
 }: CupMatchCinematicProps): JSX.Element {
   const steps = useMemo(() => buildSteps(play), [play]);
   const [index, setIndex] = useState(0);
+  const [phase, setPhase] = useState<'match' | 'shootout'>('match');
   const step = steps[index]!;
 
   useEffect(() => {
@@ -432,26 +715,55 @@ export function CupMatchCinematic({
             </span>
           </div>
         </div>
+      ) : phase === 'shootout' && shootout ? (
+        <PenaltyShootout
+          theme={theme}
+          kicks={shootout}
+          homeName={play.homeName}
+          awayName={play.awayName}
+          homeColor={homeColor}
+          awayColor={awayColor}
+          managedSide={managedSide}
+          onDone={onDone}
+          continueLabel={position.index + 1 < position.total ? 'Próximo jogo' : 'Continuar'}
+        />
       ) : step.kind === 'fulltime' ? (
         /* FIM DE JOGO */
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
           <Motif kind={theme.motif} className="mb-3 h-14 w-14" style={{ color: theme.accent }} />
-          <p className="font-sans text-xs uppercase tracking-[0.4em] text-white/65">{theme.label} · Fim de jogo</p>
-          <div className="mt-3 flex items-center justify-center gap-5">
-            <span className={`font-display text-3xl font-bold uppercase ${teamTone('home')}`}>{play.homeName}</span>
+          <p className="font-sans text-xs uppercase tracking-[0.4em] text-white/65">
+            {theme.label} · {shootout ? 'Empate em 90′' : 'Fim de jogo'}
+          </p>
+          <div className="mt-3 grid w-full max-w-2xl grid-cols-[1fr_auto_1fr] items-center gap-5">
+            <span className={`truncate text-right font-display text-3xl font-bold uppercase ${teamTone('home')}`}>
+              {play.homeName}
+            </span>
             <span className="font-display text-6xl font-extrabold tabular-nums" style={{ color: theme.accent }}>
               {play.finalHome} <span className="text-white/30">×</span> {play.finalAway}
             </span>
-            <span className={`font-display text-3xl font-bold uppercase ${teamTone('away')}`}>{play.awayName}</span>
+            <span className={`truncate text-left font-display text-3xl font-bold uppercase ${teamTone('away')}`}>
+              {play.awayName}
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={onDone}
-            className="mt-8 border-2 px-8 py-3 font-display text-xl font-bold uppercase tracking-wide transition-transform hover:scale-[1.03]"
-            style={{ backgroundColor: theme.accent, color: theme.accentInk, borderColor: theme.accent }}
-          >
-            {position.index + 1 < position.total ? 'Próximo jogo' : 'Continuar'}
-          </button>
+          {shootout ? (
+            <button
+              type="button"
+              onClick={() => setPhase('shootout')}
+              className="cup-pulse mt-8 border-2 px-8 py-3 font-display text-xl font-bold uppercase tracking-wide transition-transform hover:scale-[1.03]"
+              style={{ backgroundColor: theme.accent, color: theme.accentInk, borderColor: theme.accent }}
+            >
+              Disputa de pênaltis →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onDone}
+              className="mt-8 border-2 px-8 py-3 font-display text-xl font-bold uppercase tracking-wide transition-transform hover:scale-[1.03]"
+              style={{ backgroundColor: theme.accent, color: theme.accentInk, borderColor: theme.accent }}
+            >
+              {position.index + 1 < position.total ? 'Próximo jogo' : 'Continuar'}
+            </button>
+          )}
         </div>
       ) : (
         /* CENA DO JOGO */
@@ -467,9 +779,9 @@ export function CupMatchCinematic({
             </span>
           </div>
 
-          {/* Placar */}
-          <div className="relative z-10 mt-2 flex items-center justify-center gap-4 px-5 lg:gap-8">
-            <span className={`font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('home')}`}>
+          {/* Placar (grid 3 colunas: o × fica centralizado na tela) */}
+          <div className="relative z-10 mx-auto mt-2 grid w-full max-w-3xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
+            <span className={`truncate text-right font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('home')}`}>
               {play.homeName}
             </span>
             <span
@@ -478,7 +790,7 @@ export function CupMatchCinematic({
             >
               {step.scoreHome} <span className="text-white/40">×</span> {step.scoreAway}
             </span>
-            <span className={`font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('away')}`}>
+            <span className={`truncate text-left font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('away')}`}>
               {play.awayName}
             </span>
           </div>

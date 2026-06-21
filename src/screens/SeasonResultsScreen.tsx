@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { Club, GameState, Player, PlayerSeasonStats } from '@/types';
 import type { SeasonOutcome } from '@/engine/season';
 import type { CupResult, CupTie } from '@/engine/cup';
@@ -718,25 +718,30 @@ function CupsTab({ game, cups, managedId }: CupsTabProps): JSX.Element {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <div>
-        <CupView game={game} cup={cups.mundial} title="Mundial de Clubes" managedId={managedId} />
-        {viewButton('Ver chaveamento', 'mundial')}
-      </div>
-      <div>
-        <CupView game={game} cup={cups.national} title="Copa Nacional" managedId={managedId} />
-        {viewButton('Ver chaveamento', 'national')}
-      </div>
+      <CupView
+        game={game}
+        cup={cups.national}
+        title="Copa Nacional"
+        managedId={managedId}
+        footer={viewButton('Ver chaveamento', 'national')}
+      />
       {continental.map((comp) => (
-        <div key={comp.key}>
-          <CompetitionCard
-            game={game}
-            result={comp.result}
-            title={comp.title}
-            managedId={managedId}
-          />
-          {viewButton('Ver grupos & chaveamento', comp.key)}
-        </div>
+        <CompetitionCard
+          key={comp.key}
+          game={game}
+          result={comp.result}
+          title={comp.title}
+          managedId={managedId}
+          footer={viewButton('Ver grupos & chaveamento', comp.key)}
+        />
       ))}
+      <CupView
+        game={game}
+        cup={cups.mundial}
+        title="Mundial de Clubes"
+        managedId={managedId}
+        footer={viewButton('Ver chaveamento', 'mundial')}
+      />
     </div>
   );
 }
@@ -746,6 +751,7 @@ interface CompetitionCardProps {
   result: CompetitionResult;
   title: string;
   managedId: string;
+  footer?: ReactNode;
 }
 
 function managedCompetitionRun(result: CompetitionResult, managedId: string): string {
@@ -765,12 +771,12 @@ function managedCompetitionRun(result: CompetitionResult, managedId: string): st
   return 'Seu time não disputou';
 }
 
-function CompetitionCard({ game, result, title, managedId }: CompetitionCardProps): JSX.Element {
+function CompetitionCard({ game, result, title, managedId, footer }: CompetitionCardProps): JSX.Element {
   const youWon = result.championId === managedId;
   const run = managedCompetitionRun(result, managedId);
 
   return (
-    <div className="border border-line bg-surface p-4">
+    <div className="flex h-full flex-col border border-line bg-surface p-4">
       <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
         {title}
       </p>
@@ -792,6 +798,7 @@ function CompetitionCard({ game, result, title, managedId }: CompetitionCardProp
         )}
       </p>
       <p className={`mt-1 font-sans text-xs ${youWon ? 'text-accent' : 'text-ink-faint'}`}>{run}</p>
+      {footer ? <div className="mt-auto pt-4">{footer}</div> : null}
     </div>
   );
 }
@@ -801,9 +808,10 @@ interface CupViewProps {
   cup: CupResult;
   title: string;
   managedId: string;
+  footer?: ReactNode;
 }
 
-function CupView({ game, cup, title, managedId }: CupViewProps): JSX.Element {
+function CupView({ game, cup, title, managedId, footer }: CupViewProps): JSX.Element {
   const isChampion = cup.championId === managedId;
 
   const myTies: Array<{ round: string; tie: CupTie }> = [];
@@ -824,7 +832,7 @@ function CupView({ game, cup, title, managedId }: CupViewProps): JSX.Element {
   }
 
   return (
-    <div className="border border-line bg-surface p-4">
+    <div className="flex h-full flex-col border border-line bg-surface p-4">
       <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
         {title}
       </p>
@@ -842,30 +850,36 @@ function CupView({ game, cup, title, managedId }: CupViewProps): JSX.Element {
         )}
       </p>
 
-      <ul className="mt-4 flex flex-col gap-1.5">
-        {myTies.map(({ round, tie }) => {
-          const opponentId = tie.homeId === managedId ? tie.awayId : tie.homeId;
-          const myGoals = tie.homeId === managedId ? tie.homeGoals : tie.awayGoals;
-          const oppGoals = tie.homeId === managedId ? tie.awayGoals : tie.homeGoals;
-          const won = tie.winnerId === managedId;
-          return (
-            <li key={round} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 text-sm">
-              <span className="font-sans text-xs uppercase tracking-broadcast text-ink-faint">
-                {round}
-              </span>
-              <ClubLink
-                clubId={opponentId}
-                name={clubName(game, opponentId)}
-                className="truncate font-sans text-ink-muted"
-              />
-              <span className={`font-display font-bold tabular-nums ${won ? 'text-accent' : 'text-live'}`}>
-                {myGoals}–{oppGoals}
-                {tie.penalties ? ' p' : ''}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+      {myTies.length > 0 ? (
+        <ul className="mt-4 flex flex-col gap-1">
+          {myTies.map(({ round, tie }) => {
+            const opponentId = tie.homeId === managedId ? tie.awayId : tie.homeId;
+            const myGoals = tie.homeId === managedId ? tie.homeGoals : tie.awayGoals;
+            const oppGoals = tie.homeId === managedId ? tie.awayGoals : tie.homeGoals;
+            const won = tie.winnerId === managedId;
+            return (
+              <li
+                key={round}
+                className="grid grid-cols-[7rem_1fr_auto] items-center gap-2 border-b border-line/60 py-1 text-sm last:border-b-0"
+              >
+                <span className="truncate font-sans text-[11px] uppercase tracking-broadcast text-ink-faint">
+                  {round}
+                </span>
+                <ClubLink
+                  clubId={opponentId}
+                  name={clubName(game, opponentId)}
+                  className="truncate font-sans text-ink-muted"
+                />
+                <span className={`font-display font-bold tabular-nums ${won ? 'text-accent' : 'text-live'}`}>
+                  {myGoals}–{oppGoals}
+                  {tie.penalties ? ' p' : ''}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {footer ? <div className="mt-auto pt-4">{footer}</div> : null}
     </div>
   );
 }

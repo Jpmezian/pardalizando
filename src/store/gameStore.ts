@@ -31,7 +31,7 @@ import {
   lineupStrength,
   reconcileLineup,
 } from '@/engine/lineup';
-import { buildMatchPlay, type MatchPlay, type Side } from '@/engine/matchPlay';
+import { buildMatchPlay, buildShootout, type MatchPlay, type ShootoutKick, type Side } from '@/engine/matchPlay';
 import { CUP_THEMES, nationalCupName, type CupKey, type CupTheme } from '@/config/cupThemes';
 import { simulateSeason as runSeason, type SeasonOutcome } from '@/engine/season';
 import { simulateKnockout, type CupEntrant, type CupResult, type CupRound } from '@/engine/cup';
@@ -119,6 +119,8 @@ export interface CupMatchView {
   managedSide: Side | null;
   homeColor: string;
   awayColor: string;
+  /** Disputa de pênaltis, se o jogo empatou e foi decidido nos pênaltis. */
+  shootout?: ShootoutKick[];
 }
 
 /** Fila de cinematics tocando em sequência (durante a simulação ou re-assistindo). */
@@ -140,6 +142,10 @@ export interface WatchableMatch {
   awayId: string;
   homeGoals: number;
   awayGoals: number;
+  /** Decidido nos pênaltis (empate no tempo normal). */
+  penalties?: boolean;
+  /** Quem venceu (clubId) — usado pra montar a disputa de pênaltis. */
+  winnerId?: string;
 }
 
 /** Resultado de uma partida pronto pra exibição (transiente, não vai pro save). */
@@ -240,6 +246,15 @@ function makeCupMatchView(
     competition === 'national'
       ? { ...base, label: nationalCupName(game.clubs[match.homeId]?.leagueId) }
       : base;
+  // Empate decidido nos pênaltis → monta a disputa (seeded pelo jogo).
+  let shootout: ShootoutKick[] | undefined;
+  if (match.penalties && match.winnerId) {
+    const penWinner: Side = match.winnerId === match.homeId ? 'home' : 'away';
+    const penRng = createRng(
+      seedFromString(`${game.seed}:pens:${competition}:${match.homeId}:${match.awayId}:${roundName}`),
+    );
+    shootout = buildShootout(penWinner, penRng);
+  }
   return {
     play,
     theme,
@@ -247,6 +262,7 @@ function makeCupMatchView(
     managedSide,
     homeColor: colors.home,
     awayColor: colors.away,
+    ...(shootout ? { shootout } : {}),
   };
 }
 
@@ -305,6 +321,8 @@ function scheduleCupMatches(game: GameState, cups: CupsView, totalRounds: number
               awayId: tie.awayId,
               homeGoals: tie.homeGoals,
               awayGoals: tie.awayGoals,
+              penalties: tie.penalties,
+              winnerId: tie.winnerId,
             },
           });
         }
