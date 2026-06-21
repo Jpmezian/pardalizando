@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { MatchPlay, ShotMoment, Side } from '@/engine/matchPlay';
 import type { CupMotif, CupTheme } from '@/config/cupThemes';
 
@@ -34,9 +34,9 @@ function buildSteps(play: MatchPlay): Step[] {
   let prevHome = 0;
   let prevAway = 0;
   for (const shot of shown) {
-    steps.push({ kind: 'buildup', duration: 950, scoreHome: prevHome, scoreAway: prevAway, shot });
-    steps.push({ kind: 'windup', duration: 1050, scoreHome: prevHome, scoreAway: prevAway, shot });
-    steps.push({ kind: 'reveal', duration: 1500, scoreHome: shot.scoreHome, scoreAway: shot.scoreAway, shot });
+    steps.push({ kind: 'buildup', duration: 1000, scoreHome: prevHome, scoreAway: prevAway, shot });
+    steps.push({ kind: 'windup', duration: 950, scoreHome: prevHome, scoreAway: prevAway, shot });
+    steps.push({ kind: 'reveal', duration: 1700, scoreHome: shot.scoreHome, scoreAway: shot.scoreAway, shot });
     prevHome = shot.scoreHome;
     prevAway = shot.scoreAway;
   }
@@ -109,182 +109,206 @@ function Motif({
   );
 }
 
-/** Setas marchando rumo ao gol atacado, na cor do time. */
-function FieldArrows({ direction, color }: { direction: 'left' | 'right'; color: string }): JSX.Element {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(to ${direction}, transparent 30%, ${color} 135%)`,
-          opacity: 0.14,
-        }}
-      />
-      <svg
-        viewBox="0 0 120 60"
-        preserveAspectRatio="none"
-        className="absolute inset-0 h-full w-full"
-        style={{ transform: direction === 'left' ? 'scaleX(-1)' : undefined }}
-      >
-        <g
-          className="cup-march"
-          stroke={color}
-          strokeWidth="3.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.85"
-        >
-          <polyline points="34,18 50,30 34,42" />
-          <polyline points="58,18 74,30 58,42" />
-          <polyline points="82,18 98,30 82,42" />
-        </g>
-      </svg>
-    </div>
-  );
+interface ShotGeom {
+  bx: number;
+  by: number;
+  bs: number;
+  kx: number;
+  ballMs: number;
+  flash: boolean;
 }
 
-/** Gramado realista (listras de corte) + marcações + bordas da competição. */
-function Pitch({
+function shotGeometry(step: Step): ShotGeom {
+  const shot = step.shot;
+  const side = shot && shot.minute % 2 === 0 ? 'left' : 'right';
+  if (step.kind === 'buildup') return { bx: 50, by: 75, bs: 1.1, kx: 50, ballMs: 650, flash: false };
+  if (step.kind === 'windup') return { bx: 50, by: 55, bs: 0.85, kx: 50, ballMs: 520, flash: false };
+  // reveal
+  if (shot?.outcome === 'goal') {
+    return { bx: side === 'left' ? 37 : 63, by: 22, bs: 0.55, kx: side === 'left' ? 58 : 42, ballMs: 360, flash: true };
+  }
+  if (shot?.outcome === 'save') {
+    return { bx: side === 'left' ? 43 : 57, by: 33, bs: 0.7, kx: side === 'left' ? 43 : 57, ballMs: 320, flash: false };
+  }
+  // miss
+  return { bx: side === 'left' ? 16 : 84, by: 27, bs: 0.5, kx: 50, ballMs: 340, flash: false };
+}
+
+/** Câmera de frente pro gol — gol + goleiro + bola voando, gramado em perspectiva. */
+function GoalCam({
   theme,
-  attacking,
+  step,
   attackColor,
-  children,
+  defenderColor,
+  attackingName,
 }: {
   theme: CupTheme;
-  attacking: Side | null;
+  step: Step;
   attackColor: string;
-  children?: ReactNode;
+  defenderColor: string;
+  attackingName: string;
 }): JSX.Element {
+  const shot = step.shot;
+  const g = shotGeometry(step);
+  const outcome = step.kind === 'reveal' ? shot?.outcome : undefined;
+
   return (
     <div
       className="relative w-full max-w-4xl overflow-hidden border shadow-2xl"
       style={{ aspectRatio: '16 / 9', borderColor: theme.accent }}
     >
-      {/* Placas de publicidade da competição (LED) */}
+      {/* Arquibancada + céu da competição */}
       <div
-        className="absolute inset-x-0 top-0 z-20 flex items-center justify-center overflow-hidden whitespace-nowrap"
-        style={{ height: '7%', backgroundColor: theme.accent }}
+        className="absolute inset-x-0 top-0 h-[42%]"
+        style={{ background: `linear-gradient(to bottom, ${theme.bg}, oklch(0.28 0.03 255))` }}
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-[26%]"
+        style={{ background: `linear-gradient(to bottom, ${theme.accent}, transparent)`, opacity: 0.12 }}
+      />
+      {/* Placa de LED no fundo */}
+      <div
+        className="absolute inset-x-0 top-[37%] z-10 flex items-center overflow-hidden whitespace-nowrap"
+        style={{ height: '5%', backgroundColor: theme.accent }}
       >
         <span
           className="font-display text-[9px] font-extrabold uppercase tracking-[0.5em]"
           style={{ color: theme.accentInk }}
         >
-          {`${theme.label} · `.repeat(8)}
+          {`${theme.label} · `.repeat(10)}
         </span>
       </div>
-      <div
-        className="absolute inset-x-0 bottom-0 z-20 overflow-hidden"
-        style={{ height: '7%', backgroundColor: theme.accent, opacity: 0.85 }}
-      />
 
       {/* Gramado com listras de corte */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-x-0 bottom-0 top-[42%]"
         style={{
           background:
-            'repeating-linear-gradient(90deg, oklch(0.37 0.06 152) 0 12.5%, oklch(0.33 0.06 152) 12.5% 25%)',
+            'repeating-linear-gradient(0deg, oklch(0.36 0.06 152) 0 9%, oklch(0.32 0.06 152) 9% 18%)',
         }}
       />
 
-      {/* Brasão d'água no círculo central */}
-      <Motif
-        kind={theme.motif}
-        className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2"
-        style={{ color: '#ffffff', opacity: 0.08 }}
-      />
+      {/* Linhas da grande área em perspectiva */}
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
+        <g fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5">
+          <path d="M33 100 L41 43 M67 100 L59 43 M41 43 H59" />
+          <path d="M44 43 A 7 7 0 0 1 56 43" />
+          <circle cx="50" cy="72" r="0.9" fill="rgba(255,255,255,0.6)" stroke="none" />
+        </g>
+      </svg>
 
-      {/* Marcações */}
-      <div className="pointer-events-none absolute inset-[9%_2%] border-2 border-white/35" />
-      <div className="pointer-events-none absolute inset-y-[9%] left-1/2 w-0.5 -translate-x-1/2 bg-white/35" />
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[26%] w-[15%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/35" />
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/50" />
-      {/* Grandes áreas */}
-      <div className="pointer-events-none absolute left-[2%] top-1/2 h-[44%] w-[12%] -translate-y-1/2 border-2 border-l-0 border-white/35" />
-      <div className="pointer-events-none absolute right-[2%] top-1/2 h-[44%] w-[12%] -translate-y-1/2 border-2 border-r-0 border-white/35" />
-      {/* Pequenas áreas */}
-      <div className="pointer-events-none absolute left-[2%] top-1/2 h-[22%] w-[5%] -translate-y-1/2 border-2 border-l-0 border-white/35" />
-      <div className="pointer-events-none absolute right-[2%] top-1/2 h-[22%] w-[5%] -translate-y-1/2 border-2 border-r-0 border-white/35" />
-      {/* Gols */}
-      <div className="pointer-events-none absolute left-[0.5%] top-1/2 h-[16%] w-[1.5%] -translate-y-1/2 bg-white/70" />
-      <div className="pointer-events-none absolute right-[0.5%] top-1/2 h-[16%] w-[1.5%] -translate-y-1/2 bg-white/70" />
-
-      {/* Setas de ataque na cor do time */}
-      {attacking ? (
-        <FieldArrows direction={attacking === 'home' ? 'right' : 'left'} color={attackColor} />
-      ) : null}
-
-      {/* Vinheta do estádio */}
+      {/* Gol */}
       <div
-        className="pointer-events-none absolute inset-0 z-10"
-        style={{ boxShadow: 'inset 0 0 90px 30px rgba(0,0,0,0.45)' }}
-      />
-
-      {children}
-    </div>
-  );
-}
-
-/** Mini-lance no modal: bola voando rumo ao gol (começo idêntico p/ todo desfecho). */
-function ShotLane({ step, accent }: { step: Step; accent: string }): JSX.Element {
-  const outcome = step.shot?.outcome;
-  let ballX = 8;
-  let ballY = 50;
-  let ms = 420;
-  if (step.kind === 'windup') {
-    ballX = 78;
-    ms = 440;
-  } else if (step.kind === 'reveal') {
-    if (outcome === 'goal') {
-      ballX = 90;
-      ms = 200;
-    } else if (outcome === 'save') {
-      ballX = 32;
-      ballY = 56;
-      ms = 260;
-    } else {
-      ballX = 86;
-      ballY = 10;
-      ms = 260;
-    }
-  }
-  const scored = step.kind === 'reveal' && outcome === 'goal';
-  return (
-    <div className="relative mx-auto mt-5 h-20 w-full max-w-sm overflow-hidden">
-      {/* gramado mini */}
-      <div
-        className="absolute inset-0 rounded"
-        style={{
-          background:
-            'repeating-linear-gradient(90deg, oklch(0.37 0.06 152) 0 16%, oklch(0.33 0.06 152) 16% 32%)',
-        }}
-      />
-      {/* Gol + rede */}
-      <div
-        className="absolute right-2 top-1/2 h-12 w-8 -translate-y-1/2 rounded-sm border-2 border-r-0 border-white/70"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(255,255,255,0.25) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0 1px, transparent 1px 5px)',
-        }}
-      />
-      {scored ? (
+        className="absolute left-1/2 top-[16%] z-20 -translate-x-1/2"
+        style={{ width: '46%', height: '26%' }}
+      >
+        {/* rede */}
         <div
-          className="cup-flash absolute right-1 top-1/2 h-14 w-10 -translate-y-1/2 rounded-sm"
-          style={{ backgroundColor: accent }}
-          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(0deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 7px), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 7px)',
+          }}
         />
-      ) : null}
+        {/* travessão + postes */}
+        <div className="absolute inset-x-0 top-0 h-[8%] bg-white/90" />
+        <div className="absolute inset-y-0 left-0 w-[2.5%] bg-white/90" />
+        <div className="absolute inset-y-0 right-0 w-[2.5%] bg-white/90" />
+        {/* flash do gol */}
+        {g.flash ? (
+          <div className="cup-flash absolute inset-0" style={{ backgroundColor: theme.accent }} aria-hidden="true" />
+        ) : null}
+      </div>
+
+      {/* Goleiro */}
+      <div
+        className="absolute top-[28%] z-20 -translate-x-1/2"
+        style={{
+          left: `${g.kx}%`,
+          width: '4.5%',
+          height: '13%',
+          transitionProperty: 'left',
+          transitionDuration: '300ms',
+          transitionTimingFunction: 'cubic-bezier(0.3,0,0.2,1)',
+        }}
+      >
+        <div
+          className="absolute bottom-0 h-[72%] w-full rounded-t-md"
+          style={{ backgroundColor: defenderColor }}
+        />
+        <div
+          className="absolute left-1/2 top-0 h-[36%] w-[60%] -translate-x-1/2 rounded-full"
+          style={{ backgroundColor: defenderColor }}
+        />
+      </div>
+
       {/* Bola */}
       <div
-        className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md"
+        className="absolute z-30 rounded-full bg-white shadow-lg ring-1 ring-black/20"
         style={{
-          left: `${ballX}%`,
-          top: `${ballY}%`,
-          transitionProperty: 'left, top',
-          transitionDuration: `${ms}ms`,
-          transitionTimingFunction: step.kind === 'windup' ? 'cubic-bezier(0.3,0,0.2,1)' : 'ease-out',
+          left: `${g.bx}%`,
+          top: `${g.by}%`,
+          width: '4%',
+          aspectRatio: '1',
+          transform: `translate(-50%, -50%) scale(${g.bs})`,
+          transitionProperty: 'left, top, transform',
+          transitionDuration: `${g.ballMs}ms`,
+          transitionTimingFunction: step.kind === 'reveal' ? 'cubic-bezier(0.2,0,0.1,1)' : 'ease-in',
         }}
       />
+
+      {/* Vinheta */}
+      <div
+        className="pointer-events-none absolute inset-0 z-30"
+        style={{ boxShadow: 'inset 0 0 80px 24px rgba(0,0,0,0.5)' }}
+      />
+
+      {/* Texto do desfecho (clímax) */}
+      {outcome ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[6%] z-40 flex flex-col items-center">
+          <p
+            key={`out-${step.kind}-${shot?.minute}`}
+            className="cup-shout font-display text-6xl font-extrabold uppercase leading-none lg:text-7xl"
+            style={{
+              color: outcome === 'goal' ? theme.accent : 'oklch(0.97 0.006 250)',
+              textShadow: '0 3px 16px rgba(0,0,0,0.75)',
+            }}
+          >
+            {OUTCOME_TEXT[outcome]}
+          </p>
+        </div>
+      ) : null}
+
+      {/* Quem finaliza (windup) */}
+      {step.kind === 'windup' && shot ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-40 flex flex-col items-center text-center">
+          <p className="font-sans text-xs uppercase tracking-broadcast text-white/70">
+            {shot.minute}' · {attackingName}
+          </p>
+          <p
+            key={`shooter-${shot.minute}`}
+            className="cup-shout font-display text-4xl font-extrabold uppercase leading-none text-white lg:text-5xl"
+            style={{ textShadow: '0 3px 16px rgba(0,0,0,0.8)' }}
+          >
+            {shot.shooter}
+          </p>
+          <p className="font-display text-base font-bold uppercase" style={{ color: theme.accent }}>
+            finaliza…
+          </p>
+        </div>
+      ) : null}
+
+      {/* Quem ataca (buildup) */}
+      {step.kind === 'buildup' && shot ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-40 flex justify-center px-3">
+          <p
+            className="border-l-4 bg-black/55 px-4 py-1.5 font-display text-base font-bold uppercase tracking-wide text-white backdrop-blur-sm lg:text-lg"
+            style={{ borderColor: attackColor }}
+          >
+            {attackingName} ataca · <span style={{ color: attackColor }}>{shot.shooter}</span>
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -321,9 +345,9 @@ export function CupMatchCinematic({
   const shot = step.shot;
   const attacking = shot?.team ?? null;
   const attackColor = attacking === 'home' ? homeColor : attacking === 'away' ? awayColor : theme.accent;
+  const defenderColor = attacking === 'home' ? awayColor : attacking === 'away' ? homeColor : theme.accent;
   const attackingName = attacking ? (attacking === 'home' ? play.homeName : play.awayName) : '';
   const teamTone = (side: Side): string => (managedSide === side ? 'text-accent' : 'text-white');
-  const showModal = step.kind === 'windup' || step.kind === 'reveal';
   const isIntro = step.kind === 'kickoff';
 
   return (
@@ -345,12 +369,12 @@ export function CupMatchCinematic({
             style={{ color: theme.accent }}
           >
             <Motif kind={theme.motif} className="h-4 w-4" style={{ color: theme.accent }} />
-            {theme.label} · {roundName}
+            {roundName}
           </span>
         )}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5">
           {position.total > 1 ? (
-            <span className="font-sans text-xs uppercase tracking-broadcast text-white/55">
+            <span className="mr-1 font-sans text-xs uppercase tracking-broadcast text-white/55">
               Jogo {position.index + 1}/{position.total}
             </span>
           ) : null}
@@ -358,7 +382,7 @@ export function CupMatchCinematic({
             <button
               type="button"
               onClick={onSkipAll}
-              className="font-sans text-xs font-semibold uppercase tracking-broadcast text-white/55 transition-colors hover:text-white"
+              className="border border-white/25 px-3.5 py-2 font-sans text-sm font-bold uppercase tracking-broadcast text-white/70 transition-colors hover:border-white/60 hover:text-white"
             >
               Pular tudo
             </button>
@@ -366,14 +390,15 @@ export function CupMatchCinematic({
           <button
             type="button"
             onClick={onDone}
-            className="font-sans text-xs font-semibold uppercase tracking-broadcast text-white/75 transition-colors hover:text-white"
+            className="border-2 px-4 py-2 font-sans text-sm font-bold uppercase tracking-broadcast transition-colors"
+            style={{ borderColor: theme.accent, color: theme.accent }}
           >
             {position.total > 1 ? 'Pular jogo' : 'Pular'}
           </button>
         </div>
       </header>
 
-      {/* CARD DE ABERTURA — deixa claríssimo qual competição é */}
+      {/* CARD DE ABERTURA */}
       {isIntro ? (
         <div key="intro" className="cup-intro relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
           <Motif
@@ -391,7 +416,6 @@ export function CupMatchCinematic({
             {theme.label}
           </h1>
           <p className="mt-2 font-sans text-sm italic text-white/55">{theme.tagline}</p>
-
           <div className="mt-8 flex items-center justify-center gap-5">
             <span className="flex items-center gap-2.5">
               <span className="h-7 w-2 rounded-sm" style={{ backgroundColor: homeColor }} />
@@ -412,9 +436,7 @@ export function CupMatchCinematic({
         /* FIM DE JOGO */
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
           <Motif kind={theme.motif} className="mb-3 h-14 w-14" style={{ color: theme.accent }} />
-          <p className="font-sans text-xs uppercase tracking-[0.4em] text-white/65">
-            {theme.label} · Fim de jogo
-          </p>
+          <p className="font-sans text-xs uppercase tracking-[0.4em] text-white/65">{theme.label} · Fim de jogo</p>
           <div className="mt-3 flex items-center justify-center gap-5">
             <span className={`font-display text-3xl font-bold uppercase ${teamTone('home')}`}>{play.homeName}</span>
             <span className="font-display text-6xl font-extrabold tabular-nums" style={{ color: theme.accent }}>
@@ -434,12 +456,24 @@ export function CupMatchCinematic({
       ) : (
         /* CENA DO JOGO */
         <>
-          <div className="relative z-10 flex items-center justify-center gap-4 px-5 lg:gap-8">
+          {/* Selo: JOGO DE COPA · NOME */}
+          <div className="relative z-10 flex justify-center px-5">
+            <span
+              className="flex items-center gap-2 border-2 px-4 py-1 font-display text-sm font-extrabold uppercase tracking-broadcast lg:text-base"
+              style={{ borderColor: theme.accent, color: theme.accent }}
+            >
+              <Motif kind={theme.motif} className="h-4 w-4" style={{ color: theme.accent }} />
+              Jogo de Copa · {theme.label}
+            </span>
+          </div>
+
+          {/* Placar */}
+          <div className="relative z-10 mt-2 flex items-center justify-center gap-4 px-5 lg:gap-8">
             <span className={`font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('home')}`}>
               {play.homeName}
             </span>
             <span
-              className="border-2 px-4 py-0.5 font-display text-4xl font-extrabold tabular-nums"
+              className="border-2 px-4 py-0.5 font-display text-3xl font-extrabold tabular-nums lg:text-4xl"
               style={{ color: theme.accent, borderColor: theme.accent }}
             >
               {step.scoreHome} <span className="text-white/40">×</span> {step.scoreAway}
@@ -449,67 +483,15 @@ export function CupMatchCinematic({
             </span>
           </div>
 
+          {/* Câmera de frente pro gol */}
           <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-3 lg:px-8">
-            <Pitch theme={theme} attacking={attacking} attackColor={attackColor}>
-              {/* Lower-third: quem ataca */}
-              <div className="absolute inset-x-0 bottom-[9%] z-30 flex justify-center px-3">
-                {step.kind === 'buildup' && shot ? (
-                  <p
-                    className="border-l-4 bg-black/55 px-4 py-1.5 font-display text-base font-bold uppercase tracking-wide text-white backdrop-blur-sm lg:text-lg"
-                    style={{ borderColor: attackColor }}
-                  >
-                    {attackingName} ataca · <span style={{ color: attackColor }}>{shot.shooter}</span>
-                  </p>
-                ) : null}
-              </div>
-
-              {/* Modal do chute (dentro do campo, escurece o gramado) */}
-              {showModal && shot ? (
-                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/65 px-4">
-                  <div
-                    key={`${index}-${step.kind}`}
-                    className="cup-modal-in relative w-full max-w-md border-2 p-6 text-center shadow-2xl"
-                    style={{ backgroundColor: theme.bg, borderColor: theme.accent }}
-                  >
-                    <Motif
-                      kind={theme.motif}
-                      className="absolute right-3 top-3 h-5 w-5"
-                      style={{ color: theme.accent, opacity: 0.6 }}
-                    />
-                    {step.kind === 'windup' ? (
-                      <>
-                        <p className="font-sans text-xs uppercase tracking-broadcast text-white/65">
-                          {shot.minute}' · {attackingName}
-                        </p>
-                        <p
-                          key={`shooter-${index}`}
-                          className="cup-shout mt-1 font-display text-4xl font-extrabold uppercase leading-none text-white lg:text-5xl"
-                        >
-                          {shot.shooter}
-                        </p>
-                        <p className="mt-2 font-display text-lg font-bold uppercase" style={{ color: theme.accent }}>
-                          finaliza…
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p
-                          key={`outcome-${index}`}
-                          className="cup-shout font-display text-5xl font-extrabold uppercase leading-none lg:text-6xl"
-                          style={{ color: shot.outcome === 'goal' ? theme.accent : 'oklch(0.96 0.006 250)' }}
-                        >
-                          {OUTCOME_TEXT[shot.outcome]}
-                        </p>
-                        <p className="mt-2 font-sans text-sm uppercase tracking-broadcast text-white/80">
-                          {shot.shooter}
-                        </p>
-                      </>
-                    )}
-                    <ShotLane step={step} accent={theme.accent} />
-                  </div>
-                </div>
-              ) : null}
-            </Pitch>
+            <GoalCam
+              theme={theme}
+              step={step}
+              attackColor={attackColor}
+              defenderColor={defenderColor}
+              attackingName={attackingName}
+            />
           </div>
 
           <footer className="relative z-10 flex items-center justify-center px-5 py-3">

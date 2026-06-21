@@ -128,6 +128,12 @@ export interface CupQueue {
   returnScreen: Screen;
 }
 
+/** Jogo de copa agendado pra uma rodada da liga (espalha as copas pelo calendário). */
+export interface ScheduledCupMatch extends CupMatchView {
+  /** Rodada da liga em que esse jogo de copa "acontece". */
+  round: number;
+}
+
 /** Tie/jogo mínimo pra montar o cinematic. */
 export interface WatchableMatch {
   homeId: string;
@@ -245,18 +251,55 @@ function makeCupMatchView(
 }
 
 /** Junta os jogos de copa do clube gerido pra tocar em sequência durante a simulação. */
-function buildCupQueue(game: GameState, cups: CupsView): CupMatchView[] {
+/**
+ * Fração do estágio dentro da copa (0 = fase inicial, 1 = final). Os estágios
+ * específicos vêm ANTES do "final" genérico — "Oitavas/Quartas de final" também
+ * contêm a palavra "final" e cairiam no fim da temporada por engano.
+ */
+function stageFraction(name: string): number {
+  const n = name.toLowerCase();
+  if (n.includes('oitavas')) return 0.45;
+  if (n.includes('quartas')) return 0.62;
+  if (n.includes('semi')) return 0.8;
+  if (n.includes('playoff')) return 0.32;
+  if (n.includes('64') || n.includes('128')) return 0.08;
+  if (n.includes('32')) return 0.22;
+  if (n.includes('final')) return 1; // só "Final" puro chega aqui
+  return 0.3;
+}
+
+/**
+ * Janela do calendário (fração da temporada) de cada competição — espelha o real:
+ * copa nacional espalha cedo→tarde, continental concentra no 2º turno, mundial no fim.
+ * (Champions: fase de liga set–jan, mata-mata fev–maio; Copa do Brasil: 3ª fase
+ * abr/mai → final nov.)
+ */
+function cupWindow(key: CupKey): [number, number] {
+  if (key === 'national') return [0.12, 0.86];
+  if (key === 'mundial') return [1, 1];
+  return [0.5, 0.98]; // continental (knockout)
+}
+
+/**
+ * Agenda os jogos de copa do clube gerido em rodadas da liga, espalhados pelo
+ * calendário (não todos no começo). Cada jogo "acontece" numa rodada.
+ */
+function scheduleCupMatches(game: GameState, cups: CupsView, totalRounds: number): ScheduledCupMatch[] {
   const managedId = game.managedClubId;
-  if (!managedId) return [];
-  const found: { key: CupKey; round: string; match: WatchableMatch }[] = [];
+  if (!managedId || totalRounds < 1) return [];
+  const found: { key: CupKey; round: string; match: WatchableMatch; matchday: number }[] = [];
   const collect = (key: CupKey, rounds: CupRound[]): void => {
+    const [a, b] = cupWindow(key);
     for (const round of rounds) {
       for (const tie of round.ties) {
         if (tie.bye) continue;
         if (tie.homeId === managedId || tie.awayId === managedId) {
+          const frac = a + (b - a) * stageFraction(round.name);
+          const matchday = Math.min(totalRounds, Math.max(1, Math.round(frac * totalRounds)));
           found.push({
             key,
             round: round.name,
+            matchday,
             match: {
               homeId: tie.homeId,
               awayId: tie.awayId,
@@ -275,8 +318,15 @@ function buildCupQueue(game: GameState, cups: CupsView): CupMatchView[] {
   collect('libertadores', cups.libertadores.knockout);
   collect('sudamericana', cups.sudamericana.knockout);
   collect('mundial', cups.mundial.rounds);
-  // Mantém os jogos mais decisivos (rodadas finais) se a campanha foi longa.
-  return found.slice(-8).map((entry) => makeCupMatchView(game, entry.match, entry.key, entry.round));
+
+  // Espalha colisões: dois jogos na mesma rodada empurram o seguinte +1.
+  found.sort((x, y) => x.matchday - y.matchday);
+  let last = 0;
+  return found.map((entry) => {
+    const round = entry.matchday <= last ? Math.min(totalRounds, last + 1) : entry.matchday;
+    last = round;
+    return { ...makeCupMatchView(game, entry.match, entry.key, entry.round), round };
+  });
 }
 
 /** Força de um clube a partir dos dados embarcados (pra adversários de outras ligas). */
@@ -364,6 +414,8 @@ interface GameStore {
   lastTransfers: TransferNews[] | null;
   /** Fila de cinematics de copa em exibição (transiente). */
   cupQueue: CupQueue | null;
+  /** Jogos de copa do clube agendados nas rodadas da liga (tocam durante o replay). */
+  seasonCupMatches: ScheduledCupMatch[] | null;
   /** Qual competição está aberta na tela de chaveamento. */
   viewedCompetition: ViewedCompetition | null;
   /** Clube aberto na tela de clube + de onde veio (pra voltar). */
@@ -506,6 +558,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     lastInjuries: null,
     lastTransfers: null,
     cupQueue: null,
+    seasonCupMatches: null,
     viewedCompetition: null,
     viewedClubId: null,
     clubReturnScreen: 'squad',
@@ -676,13 +729,12 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
 
     finishSimulating() {
-      const { game, lastCups } = get();
-      const matches = game && lastCups ? buildCupQueue(game, lastCups) : [];
-      if (matches.length > 0) {
-        set({ cupQueue: { matches, index: 0, returnScreen: 'replay' }, screen: 'cup-match' });
-      } else {
-        set({ screen: 'replay' });
-      }
+      // As copas agora tocam DURANTE o replay, na rodada certa do calendário.
+      const { game, lastCups, lastSeason } = get();
+      const totalRounds = lastSeason?.rounds.length ?? 0;
+      const scheduled =
+        game && lastCups ? scheduleCupMatches(game, lastCups, totalRounds) : [];
+      set({ seasonCupMatches: scheduled.length > 0 ? scheduled : null, screen: 'replay' });
     },
 
     backToStart() {
@@ -991,6 +1043,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         lastCups: null,
         lastInjuries: null,
         lastTransfers: progressed.transfers,
+        seasonCupMatches: null,
         screen: verdict.fired ? 'fired' : destination,
       });
       void persistGame(next);

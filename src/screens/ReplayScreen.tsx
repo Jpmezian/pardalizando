@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Player } from '@/types';
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore, type ScheduledCupMatch } from '@/store/gameStore';
 import { standingsFromRounds, type MatchResultRow } from '@/engine/season';
 import { LEAGUES } from '@/data/loaders';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
 import { BroadcastButton } from '@/components/BroadcastButton';
 import { ClubLink } from '@/components/ClubLink';
+import { CupMatchCinematic } from '@/components/CupMatchCinematic';
 import { roundDateLabel, seasonYearLabel } from '@/lib/format';
 
 const ROUND_INTERVAL_MS = 650;
@@ -20,23 +21,56 @@ const SPEEDS: ReadonlyArray<{ label: string; ms: number }> = [
 export function ReplayScreen(): JSX.Element {
   const game = useGameStore((state) => state.game);
   const season = useGameStore((state) => state.lastSeason);
+  const seasonCupMatches = useGameStore((state) => state.seasonCupMatches);
   const goToSeasonResults = useGameStore((state) => state.goToSeasonResults);
   const backToLineup = useGameStore((state) => state.backToLineup);
 
   const [roundsPlayed, setRoundsPlayed] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [intervalMs, setIntervalMs] = useState(ROUND_INTERVAL_MS);
+  const [cupOverlay, setCupOverlay] = useState<{ matches: ScheduledCupMatch[]; index: number } | null>(null);
+  const shownRoundsRef = useRef<Set<number>>(new Set());
 
   const totalRounds = season?.rounds.length ?? 0;
-  const finished = totalRounds > 0 && roundsPlayed >= totalRounds;
+  const finished = totalRounds > 0 && roundsPlayed >= totalRounds && !cupOverlay;
+
+  // Jogos de copa agrupados pela rodada da liga em que acontecem.
+  const cupByRound = useMemo(() => {
+    const map = new Map<number, ScheduledCupMatch[]>();
+    for (const match of seasonCupMatches ?? []) {
+      const arr = map.get(match.round) ?? [];
+      arr.push(match);
+      map.set(match.round, arr);
+    }
+    return map;
+  }, [seasonCupMatches]);
+
+  // O replay pausa quando chega numa rodada com jogo de copa do seu time.
+  useEffect(() => {
+    if (roundsPlayed < 1 || cupOverlay) return;
+    if (shownRoundsRef.current.has(roundsPlayed)) return;
+    const matches = cupByRound.get(roundsPlayed);
+    if (matches && matches.length > 0) {
+      shownRoundsRef.current.add(roundsPlayed);
+      setCupOverlay({ matches, index: 0 });
+    }
+  }, [roundsPlayed, cupByRound, cupOverlay]);
 
   useEffect(() => {
-    if (!playing || roundsPlayed >= totalRounds) return;
+    if (!playing || cupOverlay || roundsPlayed >= totalRounds) return;
     const timer = setTimeout(() => {
       setRoundsPlayed((current) => Math.min(current + 1, totalRounds));
     }, intervalMs);
     return () => clearTimeout(timer);
-  }, [playing, roundsPlayed, totalRounds, intervalMs]);
+  }, [playing, cupOverlay, roundsPlayed, totalRounds, intervalMs]);
+
+  const advanceCupOverlay = (): void => {
+    setCupOverlay((current) => {
+      if (!current) return null;
+      if (current.index + 1 < current.matches.length) return { ...current, index: current.index + 1 };
+      return null;
+    });
+  };
 
   const managedClub = game?.managedClubId ? game.clubs[game.managedClubId] : undefined;
   if (!game || !managedClub || !season) {
@@ -96,6 +130,20 @@ export function ReplayScreen(): JSX.Element {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
+      {cupOverlay && cupOverlay.matches[cupOverlay.index] ? (
+        <CupMatchCinematic
+          key={cupOverlay.index}
+          play={cupOverlay.matches[cupOverlay.index]!.play}
+          theme={cupOverlay.matches[cupOverlay.index]!.theme}
+          roundName={cupOverlay.matches[cupOverlay.index]!.roundName}
+          managedSide={cupOverlay.matches[cupOverlay.index]!.managedSide}
+          homeColor={cupOverlay.matches[cupOverlay.index]!.homeColor}
+          awayColor={cupOverlay.matches[cupOverlay.index]!.awayColor}
+          position={{ index: cupOverlay.index, total: cupOverlay.matches.length }}
+          onDone={advanceCupOverlay}
+          onSkipAll={cupOverlay.matches.length > 1 ? () => setCupOverlay(null) : undefined}
+        />
+      ) : null}
       <BroadcastTopBar onBack={backToLineup} backLabel="Escalação" rightLabel={managedClub.name} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-6 lg:px-8">
