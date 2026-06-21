@@ -1,6 +1,6 @@
 import type { Club, GameState, Player, SubPos } from '@/types';
 import type { Rng } from './rng';
-import { ROSTER_LIMIT } from '@/config/economy';
+import { MIN_ROSTER, ROSTER_LIMIT } from '@/config/economy';
 
 const YOUTH_POSITIONS: SubPos[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
@@ -159,6 +159,34 @@ export function progressSeason(game: GameState, rng: Rng): AdvancedState {
     const youthId = `youth-${game.currentSeason}-${managedClub.id}`;
     players[youthId] = makeYouth(managedClub, subPos, rng, youthId);
     managedClub.squad = [...managedClub.squad, youthId];
+  }
+
+  // Mercado da IA: alguns jogadores trocam de clube entre os times da IA (não o seu).
+  // Compradores são sorteados com viés pra reputação (clube melhor leva a melhor).
+  const aiClubs = Object.values(clubs).filter((club) => club.id !== game.managedClubId);
+  if (aiClubs.length >= 2) {
+    const transfers = Math.min(10, Math.max(4, Math.round(aiClubs.length * 0.5)));
+    for (let t = 0; t < transfers; t += 1) {
+      const sellers = aiClubs.filter((club) => club.squad.length > MIN_ROSTER);
+      if (sellers.length === 0) break;
+      const seller = sellers[rng.int(0, sellers.length - 1)]!;
+      const playerId = seller.squad[rng.int(0, seller.squad.length - 1)]!;
+      const player = players[playerId];
+      if (!player) continue;
+
+      const buyers = aiClubs.filter(
+        (club) => club.id !== seller.id && club.squad.length < ROSTER_LIMIT,
+      );
+      if (buyers.length === 0) continue;
+      // Seleção por torneio (2 candidatos, leva o de maior reputação) → bom vai pra bom.
+      const a = buyers[rng.int(0, buyers.length - 1)]!;
+      const b = buyers[rng.int(0, buyers.length - 1)]!;
+      const buyer = a.reputation >= b.reputation ? a : b;
+
+      seller.squad = seller.squad.filter((id) => id !== playerId);
+      buyer.squad = [...buyer.squad, playerId];
+      players[playerId] = { ...player, clubId: buyer.id };
+    }
   }
 
   return { players, clubs, currentSeason: game.currentSeason + 1 };

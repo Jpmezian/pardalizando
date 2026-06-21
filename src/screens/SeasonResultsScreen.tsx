@@ -508,10 +508,15 @@ function AwardsTab({
 }: SeasonContentProps & { cups: CupsView | null }): JSX.Element {
   // Mundo todo: jogadores do dataset, com a sua liga sobreposta pela versão evoluída.
   const worldPlayers = useMemo(() => {
-    const byId = new Map(getAllPlayers().map((entry) => [entry.id, entry]));
+    const gone = new Set(game.transferredOut ?? []);
+    const byId = new Map(
+      getAllPlayers()
+        .filter((entry) => !gone.has(entry.id))
+        .map((entry) => [entry.id, entry]),
+    );
     for (const entry of Object.values(game.players)) byId.set(entry.id, entry);
     return [...byId.values()];
-  }, [game.players]);
+  }, [game.players, game.transferredOut]);
 
   const awards = useMemo(
     () => computeSeasonAwards(worldPlayers, season.stats, cups?.champions, cups?.libertadores),

@@ -142,4 +142,6 @@ export interface GameState {
   packs: PackInventory;
   /** Confiança da diretoria (0–100). Zerou = demitido. Default 55 em saves antigos. */
   boardConfidence?: number;
+  /** Ids (do dataset) de jogadores que vieram pro seu time e saíram do clube original. */
+  transferredOut?: string[];
 }

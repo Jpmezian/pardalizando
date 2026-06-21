@@ -77,4 +77,37 @@ describe('progressSeason', () => {
     expect(result.clubs.ai!.squad).toHaveLength(11);
     expect(result.clubs.ai!.squad.some((id) => id.startsWith('regen-'))).toBe(true);
   });
+
+  it('a IA movimenta o mercado entre seus clubes', () => {
+    const players: Record<string, Player> = {};
+    const squads: Record<string, string[]> = { me: [], ai1: [], ai2: [] };
+    for (const club of ['me', 'ai1', 'ai2']) {
+      for (let i = 0; i < 13; i += 1) {
+        const id = `${club}-${i}`;
+        players[id] = mk(id, club, 25, 75, 80);
+        squads[club]!.push(id);
+      }
+    }
+    const game: GameState = {
+      seed: 7,
+      dataVersion: 'test',
+      managedClubId: 'me',
+      currentSeason: 1,
+      phase: 'lineup',
+      lineup: null,
+      clubs: {
+        me: { id: 'me', name: 'Me', leagueId: 'premier-league', squad: squads.me!, budget: 0, reputation: 4 },
+        ai1: { id: 'ai1', name: 'AI1', leagueId: 'premier-league', squad: squads.ai1!, budget: 0, reputation: 3 },
+        ai2: { id: 'ai2', name: 'AI2', leagueId: 'premier-league', squad: squads.ai2!, budget: 0, reputation: 3 },
+      },
+      players,
+      history: [],
+      packs: { goldenTickets: 0, goldPity: 0 },
+    };
+
+    const result = progressSeason(game, createRng(5));
+    const ai1HasForeign = result.clubs.ai1!.squad.some((id) => id.startsWith('ai2-'));
+    const ai2HasForeign = result.clubs.ai2!.squad.some((id) => id.startsWith('ai1-'));
+    expect(ai1HasForeign || ai2HasForeign).toBe(true);
+  });
 });

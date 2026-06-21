@@ -32,11 +32,12 @@ export function ClubDetailScreen(): JSX.Element {
     );
   }
 
+  const gone = new Set(game.transferredOut ?? []);
   const players: Player[] = inGameClub
     ? club.squad
         .map((id) => game.players[id])
         .filter((player): player is Player => player !== undefined)
-    : getClubPlayers(club);
+    : getClubPlayers(club).filter((player) => !gone.has(player.id));
 
   const sorted = [...players].sort(
     (a, b) => POSITION_ORDER[a.pos] - POSITION_ORDER[b.pos] || b.ovr - a.ovr,

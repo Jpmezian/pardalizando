@@ -132,12 +132,15 @@ function buildGameForClub(clubId: string): GameState {
     history: [],
     packs: { goldenTickets: STARTING_TICKETS, goldPity: 0 },
     boardConfidence: BOARD_START,
+    transferredOut: [],
   };
 }
 
 /** Força de um clube a partir dos dados embarcados (pra adversários de outras ligas). */
-function datasetStrength(club: Club): SectorStrength {
-  return teamStrength(pickBestXI(getClubPlayers(club), formationSubPositions('4-3-3')));
+function datasetStrength(club: Club, out?: Set<string>): SectorStrength {
+  const players =
+    out && out.size > 0 ? getClubPlayers(club).filter((p) => !out.has(p.id)) : getClubPlayers(club);
+  return teamStrength(pickBestXI(players, formationSubPositions('4-3-3')));
 }
 
 /** Participantes da Copa Nacional: todos os clubes da sua liga. */
@@ -167,6 +170,7 @@ function continentalTiers(
   const managedClub = managedId ? game.clubs[managedId] : undefined;
   const managedContinent = managedClub ? continentOf(managedClub.leagueId) : undefined;
 
+  const out = new Set(game.transferredOut ?? []);
   const clubs: Club[] = [];
   for (const league of LEAGUES) {
     if (league.continent !== continent) continue;
@@ -178,7 +182,7 @@ function continentalTiers(
 
   const entrants: CupEntrant[] = clubs.map((club) => ({
     clubId: club.id,
-    strength: club.id === managedId ? lineupStrength(game, lineup) : datasetStrength(club),
+    strength: club.id === managedId ? lineupStrength(game, lineup) : datasetStrength(club, out),
   }));
   const force = (s: SectorStrength): number => s.atk + s.mid + s.def;
   const ranked = entrants.sort((a, b) => force(b.strength) - force(a.strength));
@@ -378,6 +382,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         packs: { goldenTickets: loaded.packs.goldenTickets, goldPity: loaded.packs.goldPity ?? 0 },
         lineup: loaded.lineup ? { ...loaded.lineup, bench: loaded.lineup.bench ?? [] } : null,
         boardConfidence: loaded.boardConfidence ?? BOARD_START,
+        transferredOut: loaded.transferredOut ?? [],
       };
       const managedClub = game.managedClubId ? game.clubs[game.managedClubId] : undefined;
 
@@ -541,8 +546,12 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (config.currency === 'tickets' && game.packs.goldenTickets < config.cost) return;
 
       const ownedNames = new Set(Object.values(game.players).map((player) => player.name));
+      const gone = new Set(game.transferredOut ?? []);
       const pool = getAllPlayers().filter(
-        (player) => game.players[player.id] === undefined && !ownedNames.has(player.name),
+        (player) =>
+          game.players[player.id] === undefined &&
+          !ownedNames.has(player.name) &&
+          !gone.has(player.id),
       );
       const rng = createRng(seedFromString(`${game.seed}:pack:${rarity}:${pullCount}`));
       const { result, newPityCount } = runOpenPack(pool, rarity, rng, game.packs.goldPity);
@@ -574,7 +583,13 @@ export const useGameStore = create<GameStore>((set, get) => {
         goldPity: newPityCount,
       };
 
-      const next: GameState = { ...game, players, clubs, packs };
+      const next: GameState = {
+        ...game,
+        players,
+        clubs,
+        packs,
+        transferredOut: [...(game.transferredOut ?? []), result.template.id],
+      };
       set({
         game: next,
         lastPull: { player: pulled, rarity, isHigh: result.isHigh },
@@ -632,8 +647,12 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (config.currency === 'tickets' && game.packs.goldenTickets < config.cost) return;
 
       const ownedNames = new Set(Object.values(game.players).map((player) => player.name));
+      const gone = new Set(game.transferredOut ?? []);
       const pool = getAllPlayers().filter(
-        (player) => game.players[player.id] === undefined && !ownedNames.has(player.name),
+        (player) =>
+          game.players[player.id] === undefined &&
+          !ownedNames.has(player.name) &&
+          !gone.has(player.id),
       );
       const rng = createRng(seedFromString(`${game.seed}:spin:${spinId}:${pullCount}`));
       const result = runSpin(pool, config, rng, game.packs.goldPity);
@@ -665,7 +684,13 @@ export const useGameStore = create<GameStore>((set, get) => {
         goldPity: result.newPity,
       };
 
-      const next: GameState = { ...game, players, clubs, packs };
+      const next: GameState = {
+        ...game,
+        players,
+        clubs,
+        packs,
+        transferredOut: [...(game.transferredOut ?? []), result.winner.id],
+      };
       set({
         game: next,
         lastSpin: { reel: result.reel, winnerIndex: result.winnerIndex, winner, isHigh: result.isHigh },
