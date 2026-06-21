@@ -109,6 +109,8 @@ export function buildMatchPlay(
 export interface ShootoutKick {
   team: Side;
   scored: boolean;
+  /** Nome do batedor (atribuído na camada do store, que tem o elenco). */
+  kicker?: string;
 }
 
 /**

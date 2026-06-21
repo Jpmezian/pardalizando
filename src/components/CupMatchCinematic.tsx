@@ -47,6 +47,19 @@ function buildSteps(play: MatchPlay): Step[] {
 
 const OUTCOME_TEXT: Record<string, string> = { goal: 'GOL!', save: 'DEFENDEU!', miss: 'PRA FORA!' };
 
+// Cores semânticas FIXAS pro desfecho (independentes da competição), pra deixar
+// inconfundível: verde = gol, azul = defesa, vermelho = pra fora.
+const GOAL_COLOR = 'oklch(0.84 0.21 145)';
+const SAVE_COLOR = 'oklch(0.78 0.13 235)';
+const MISS_COLOR = 'oklch(0.68 0.21 28)';
+const OUTCOME_COLOR: Record<'goal' | 'save' | 'miss', string> = {
+  goal: GOAL_COLOR,
+  save: SAVE_COLOR,
+  miss: MISS_COLOR,
+};
+// Goleiro com cor neutra de goleiro (não é cor de time) — tira ambiguidade.
+const KEEPER_COLOR = 'oklch(0.83 0.17 95)';
+
 /** Brasão da competição — desenhado à mão (sem libs de ícone). */
 function Motif({
   kind,
@@ -140,13 +153,11 @@ function GoalCam({
   theme,
   step,
   attackColor,
-  defenderColor,
   attackingName,
 }: {
   theme: CupTheme;
   step: Step;
   attackColor: string;
-  defenderColor: string;
   attackingName: string;
 }): JSX.Element {
   const shot = step.shot;
@@ -189,12 +200,17 @@ function GoalCam({
         }}
       />
 
-      {/* Linhas da grande área em perspectiva */}
+      {/* Grande área em perspectiva (gol no topo; área mais larga que o gol, arco na frente) */}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
-        <g fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5">
-          <path d="M33 100 L41 43 M67 100 L59 43 M41 43 H59" />
-          <path d="M44 43 A 7 7 0 0 1 56 43" />
-          <circle cx="50" cy="72" r="0.9" fill="rgba(255,255,255,0.6)" stroke="none" />
+        <g fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeLinejoin="round">
+          {/* Grande área (18 jardas): linha de fundo no gol, abrindo até a linha da frente */}
+          <path d="M22 42 L9 80 H91 L78 42" />
+          {/* Meia-lua: arco na linha da frente, estufando pra fora (em direção ao batedor) */}
+          <path d="M40 80 Q 50 91 60 80" />
+          {/* Pequena área (5 metros) */}
+          <path d="M34 42 L30 55 H70 L66 42" />
+          {/* Marca do pênalti */}
+          <circle cx="50" cy="61" r="1" fill="rgba(255,255,255,0.75)" stroke="none" />
         </g>
       </svg>
 
@@ -215,9 +231,9 @@ function GoalCam({
         <div className="absolute inset-x-0 top-0 h-[8%] bg-white/90" />
         <div className="absolute inset-y-0 left-0 w-[2.5%] bg-white/90" />
         <div className="absolute inset-y-0 right-0 w-[2.5%] bg-white/90" />
-        {/* flash do gol */}
+        {/* flash do gol (verde) */}
         {g.flash ? (
-          <div className="cup-flash absolute inset-0" style={{ backgroundColor: theme.accent }} aria-hidden="true" />
+          <div className="cup-flash absolute inset-0" style={{ backgroundColor: GOAL_COLOR }} aria-hidden="true" />
         ) : null}
       </div>
 
@@ -235,11 +251,11 @@ function GoalCam({
       >
         <div
           className="absolute bottom-0 h-[72%] w-full rounded-t-md"
-          style={{ backgroundColor: defenderColor }}
+          style={{ backgroundColor: KEEPER_COLOR }}
         />
         <div
           className="absolute left-1/2 top-0 h-[36%] w-[60%] -translate-x-1/2 rounded-full"
-          style={{ backgroundColor: defenderColor }}
+          style={{ backgroundColor: KEEPER_COLOR }}
         />
       </div>
 
@@ -278,16 +294,31 @@ function GoalCam({
         </div>
       ) : null}
 
-      {/* Texto do desfecho (clímax) */}
+      {/* Banner de quem ataca (buildup + windup) — nome do time bem claro */}
+      {(step.kind === 'buildup' || step.kind === 'windup') && shot ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[6%] z-40 flex justify-center px-3">
+          <div
+            className="flex items-center gap-2.5 border-2 bg-black/55 px-4 py-1.5 backdrop-blur-sm"
+            style={{ borderColor: attackColor }}
+          >
+            <span className="h-5 w-5 rounded-sm" style={{ backgroundColor: attackColor }} />
+            <span className="font-display text-xl font-extrabold uppercase tracking-wide text-white lg:text-2xl">
+              {attackingName}
+            </span>
+            <span className="font-display text-xl font-extrabold uppercase lg:text-2xl" style={{ color: attackColor }}>
+              ataca
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Texto do desfecho (clímax) — cor semântica: verde gol / azul defesa / vermelho fora */}
       {outcome ? (
         <div className="pointer-events-none absolute inset-x-0 top-[6%] z-40 flex flex-col items-center">
           <p
             key={`out-${step.kind}-${shot?.minute}`}
-            className="cup-shout font-display text-6xl font-extrabold uppercase leading-none lg:text-7xl"
-            style={{
-              color: outcome === 'goal' ? theme.accent : 'oklch(0.97 0.006 250)',
-              textShadow: '0 3px 16px rgba(0,0,0,0.75)',
-            }}
+            className="cup-shout font-display text-7xl font-extrabold uppercase leading-none lg:text-8xl"
+            style={{ color: OUTCOME_COLOR[outcome], textShadow: '0 3px 18px rgba(0,0,0,0.8)' }}
           >
             {OUTCOME_TEXT[outcome]}
           </p>
@@ -313,17 +344,6 @@ function GoalCam({
         </div>
       ) : null}
 
-      {/* Quem ataca (buildup) */}
-      {step.kind === 'buildup' && shot ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-40 flex justify-center px-3">
-          <p
-            className="border-l-4 bg-black/55 px-4 py-1.5 font-display text-base font-bold uppercase tracking-wide text-white backdrop-blur-sm lg:text-lg"
-            style={{ borderColor: attackColor }}
-          >
-            {attackingName} ataca · <span style={{ color: attackColor }}>{shot.shooter}</span>
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -388,8 +408,8 @@ function PenaltyShootout({
   const current = moment.type !== 'winner' ? kicks[(moment as { i: number }).i] : undefined;
   const kickingSide = current?.team ?? null;
   const kickerColor = kickingSide === 'home' ? homeColor : kickingSide === 'away' ? awayColor : theme.accent;
-  const keeperColor = kickingSide === 'home' ? awayColor : kickingSide === 'away' ? homeColor : theme.accent;
   const kickingName = kickingSide === 'home' ? homeName : kickingSide === 'away' ? awayName : '';
+  const kickerName = current?.kicker ?? kickingName;
 
   // Geometria do chute (mira no centro; chute diverge no fim).
   const idx = moment.type !== 'winner' ? (moment as { i: number }).i : 0;
@@ -429,7 +449,8 @@ function PenaltyShootout({
   const winnerColor = winnerSide === 'home' ? homeColor : awayColor;
   const tone = (side2: Side): string => (managedSide === side2 ? 'text-accent' : 'text-white');
 
-  const markerRow = (teamKicks: typeof homeKicks, color: string): JSX.Element => (
+  // Marcadores: verde = converteu, vermelho × = perdeu (claro independente do time).
+  const markerRow = (teamKicks: typeof homeKicks): JSX.Element => (
     <div className="flex items-center gap-1.5">
       {teamKicks.map((k) => {
         const done = resolved(k.i);
@@ -437,11 +458,12 @@ function PenaltyShootout({
           return <span key={k.i} className="h-3.5 w-3.5 rounded-full border border-white/25" />;
         }
         return k.scored ? (
-          <span key={k.i} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
+          <span key={k.i} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: GOAL_COLOR }} />
         ) : (
           <span
             key={k.i}
-            className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/30 text-[9px] font-bold text-white/45"
+            className="flex h-3.5 w-3.5 items-center justify-center rounded-full border text-[9px] font-bold"
+            style={{ borderColor: MISS_COLOR, color: MISS_COLOR }}
           >
             ×
           </span>
@@ -466,15 +488,21 @@ function PenaltyShootout({
       {/* Marcadores + placar dos pênaltis */}
       <div className="mx-auto mt-3 grid w-full max-w-2xl grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="flex flex-col items-end gap-1">
-          <span className={`font-display text-sm font-bold uppercase ${tone('home')}`}>{homeName}</span>
-          {markerRow(homeKicks, homeColor)}
+          <span className={`flex items-center gap-2 font-display text-sm font-bold uppercase ${tone('home')}`}>
+            {homeName}
+            <span className="h-3.5 w-1.5 rounded-sm" style={{ backgroundColor: homeColor }} />
+          </span>
+          {markerRow(homeKicks)}
         </div>
         <span className="font-display text-3xl font-extrabold tabular-nums" style={{ color: theme.accent }}>
           {homeScore} <span className="text-white/30">×</span> {awayScore}
         </span>
         <div className="flex flex-col items-start gap-1">
-          <span className={`font-display text-sm font-bold uppercase ${tone('away')}`}>{awayName}</span>
-          {markerRow(awayKicks, awayColor)}
+          <span className={`flex items-center gap-2 font-display text-sm font-bold uppercase ${tone('away')}`}>
+            <span className="h-3.5 w-1.5 rounded-sm" style={{ backgroundColor: awayColor }} />
+            {awayName}
+          </span>
+          {markerRow(awayKicks)}
         </div>
       </div>
 
@@ -529,10 +557,10 @@ function PenaltyShootout({
               <div className="absolute inset-y-0 left-0 w-[2.5%] bg-white/90" />
               <div className="absolute inset-y-0 right-0 w-[2.5%] bg-white/90" />
               {flash ? (
-                <div className="cup-flash absolute inset-0" style={{ backgroundColor: theme.accent }} aria-hidden="true" />
+                <div className="cup-flash absolute inset-0" style={{ backgroundColor: GOAL_COLOR }} aria-hidden="true" />
               ) : null}
             </div>
-            {/* Goleiro */}
+            {/* Goleiro (cor neutra de goleiro) */}
             <div
               className="absolute top-[26%] z-20 -translate-x-1/2"
               style={{
@@ -544,8 +572,8 @@ function PenaltyShootout({
                 transitionTimingFunction: 'cubic-bezier(0.3,0,0.2,1)',
               }}
             >
-              <div className="absolute bottom-0 h-[72%] w-full rounded-t-md" style={{ backgroundColor: keeperColor }} />
-              <div className="absolute left-1/2 top-0 h-[36%] w-[60%] -translate-x-1/2 rounded-full" style={{ backgroundColor: keeperColor }} />
+              <div className="absolute bottom-0 h-[72%] w-full rounded-t-md" style={{ backgroundColor: KEEPER_COLOR }} />
+              <div className="absolute left-1/2 top-0 h-[36%] w-[60%] -translate-x-1/2 rounded-full" style={{ backgroundColor: KEEPER_COLOR }} />
             </div>
             {/* Bola */}
             <div
@@ -563,28 +591,31 @@ function PenaltyShootout({
             />
             <div className="pointer-events-none absolute inset-0 z-30" style={{ boxShadow: 'inset 0 0 60px 18px rgba(0,0,0,0.5)' }} />
 
-            {/* Texto */}
+            {/* Texto: quem cobra (com o nome do jogador) / desfecho */}
             {moment.type === 'aim' ? (
-              <div className="absolute inset-x-0 bottom-[6%] z-40 flex justify-center px-3">
+              <div className="absolute inset-x-0 bottom-[5%] z-40 flex flex-col items-center text-center">
+                <span className="flex items-center gap-2 font-sans text-xs uppercase tracking-broadcast text-white/75">
+                  <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: kickerColor }} />
+                  {kickingName} · cobra
+                </span>
                 <p
-                  className="border-l-4 bg-black/55 px-4 py-1.5 font-display text-base font-bold uppercase tracking-wide text-white backdrop-blur-sm"
-                  style={{ borderColor: kickerColor }}
+                  key={`kicker-${idx}`}
+                  className="cup-shout font-display text-3xl font-extrabold uppercase leading-none text-white lg:text-4xl"
+                  style={{ textShadow: '0 3px 16px rgba(0,0,0,0.8)' }}
                 >
-                  {kickingName} cobra
+                  {kickerName}
                 </p>
               </div>
             ) : (
-              <div className="pointer-events-none absolute inset-x-0 top-[4%] z-40 flex justify-center">
+              <div className="pointer-events-none absolute inset-x-0 top-[4%] z-40 flex flex-col items-center text-center">
                 <p
                   key={`pen-${idx}`}
                   className="cup-shout font-display text-5xl font-extrabold uppercase leading-none lg:text-6xl"
-                  style={{
-                    color: outcome === 'goal' ? theme.accent : 'oklch(0.97 0.006 250)',
-                    textShadow: '0 3px 16px rgba(0,0,0,0.8)',
-                  }}
+                  style={{ color: OUTCOME_COLOR[outcome], textShadow: '0 3px 16px rgba(0,0,0,0.8)' }}
                 >
                   {PEN_OUTCOME[outcome]}
                 </p>
+                <p className="mt-1 font-sans text-sm uppercase tracking-broadcast text-white/80">{kickerName}</p>
               </div>
             )}
           </div>
@@ -628,7 +659,6 @@ export function CupMatchCinematic({
   const shot = step.shot;
   const attacking = shot?.team ?? null;
   const attackColor = attacking === 'home' ? homeColor : attacking === 'away' ? awayColor : theme.accent;
-  const defenderColor = attacking === 'home' ? awayColor : attacking === 'away' ? homeColor : theme.accent;
   const attackingName = attacking ? (attacking === 'home' ? play.homeName : play.awayName) : '';
   const teamTone = (side: Side): string => (managedSide === side ? 'text-accent' : 'text-white');
   const isIntro = step.kind === 'kickoff';
@@ -779,10 +809,13 @@ export function CupMatchCinematic({
             </span>
           </div>
 
-          {/* Placar (grid 3 colunas: o × fica centralizado na tela) */}
+          {/* Placar (grid 3 colunas: o × fica centralizado na tela; chip = cor do time) */}
           <div className="relative z-10 mx-auto mt-2 grid w-full max-w-3xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
-            <span className={`truncate text-right font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('home')}`}>
-              {play.homeName}
+            <span className="flex items-center justify-end gap-2 overflow-hidden">
+              <span className={`truncate font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('home')}`}>
+                {play.homeName}
+              </span>
+              <span className="h-6 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: homeColor }} />
             </span>
             <span
               className="border-2 px-4 py-0.5 font-display text-3xl font-extrabold tabular-nums lg:text-4xl"
@@ -790,20 +823,17 @@ export function CupMatchCinematic({
             >
               {step.scoreHome} <span className="text-white/40">×</span> {step.scoreAway}
             </span>
-            <span className={`truncate text-left font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('away')}`}>
-              {play.awayName}
+            <span className="flex items-center gap-2 overflow-hidden">
+              <span className="h-6 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: awayColor }} />
+              <span className={`truncate font-display text-xl font-bold uppercase lg:text-2xl ${teamTone('away')}`}>
+                {play.awayName}
+              </span>
             </span>
           </div>
 
           {/* Câmera de frente pro gol */}
           <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-3 lg:px-8">
-            <GoalCam
-              theme={theme}
-              step={step}
-              attackColor={attackColor}
-              defenderColor={defenderColor}
-              attackingName={attackingName}
-            />
+            <GoalCam theme={theme} step={step} attackColor={attackColor} attackingName={attackingName} />
           </div>
 
           <footer className="relative z-10 flex items-center justify-center px-5 py-3">

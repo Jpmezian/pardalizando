@@ -15,16 +15,26 @@ export function teamHue(seed: string): number {
   return hashString(seed) % 360;
 }
 
-export function colorFromHue(hue: number): string {
-  return `oklch(0.64 0.2 ${hue})`;
+/** Tira o hue da faixa do verde-gramado (~110–175) pra cor do time não sumir no campo. */
+function avoidGrass(hue: number): number {
+  if (hue >= 110 && hue <= 175) return hue < 145 ? 100 : 185;
+  return hue;
 }
 
-/** Par de cores contrastantes pra casa/visitante (gira o visitante se colidir). */
+export function colorFromHue(hue: number): string {
+  // Vivo e claro o suficiente pra contrastar com o gramado e entre si.
+  return `oklch(0.67 0.21 ${hue})`;
+}
+
+/**
+ * Par de cores contrastantes pra casa/visitante: vivas, fora do verde-gramado e
+ * com ≥80° de diferença de matiz (gira o visitante se ficar perto).
+ */
 export function teamColorPair(homeSeed: string, awaySeed: string): { home: string; away: string } {
-  const homeHue = teamHue(homeSeed);
-  let awayHue = teamHue(awaySeed);
+  const homeHue = avoidGrass(teamHue(homeSeed));
+  let awayHue = avoidGrass(teamHue(awaySeed));
   let gap = Math.abs(homeHue - awayHue);
   if (gap > 180) gap = 360 - gap;
-  if (gap < 55) awayHue = (homeHue + 150) % 360;
+  if (gap < 80) awayHue = avoidGrass((homeHue + 150) % 360);
   return { home: colorFromHue(homeHue), away: colorFromHue(awayHue) };
 }

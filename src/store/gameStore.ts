@@ -246,14 +246,29 @@ function makeCupMatchView(
     competition === 'national'
       ? { ...base, label: nationalCupName(game.clubs[match.homeId]?.leagueId) }
       : base;
-  // Empate decidido nos pênaltis → monta a disputa (seeded pelo jogo).
+  // Empate decidido nos pênaltis → monta a disputa (seeded pelo jogo) + batedores.
   let shootout: ShootoutKick[] | undefined;
   if (match.penalties && match.winnerId) {
     const penWinner: Side = match.winnerId === match.homeId ? 'home' : 'away';
     const penRng = createRng(
       seedFromString(`${game.seed}:pens:${competition}:${match.homeId}:${match.awayId}:${roundName}`),
     );
-    shootout = buildShootout(penWinner, penRng);
+    const raw = buildShootout(penWinner, penRng);
+    // Batedores: os melhores do elenco cobram primeiro, depois repete a lista.
+    const homeTakers = [...home.scorers].sort((a, b) => b.weight - a.weight).map((s) => s.name);
+    const awayTakers = [...away.scorers].sort((a, b) => b.weight - a.weight).map((s) => s.name);
+    let hi = 0;
+    let ai = 0;
+    shootout = raw.map((kick) => {
+      if (kick.team === 'home') {
+        const name = homeTakers[hi % homeTakers.length] ?? home.name;
+        hi += 1;
+        return { ...kick, kicker: name };
+      }
+      const name = awayTakers[ai % awayTakers.length] ?? away.name;
+      ai += 1;
+      return { ...kick, kicker: name };
+    });
   }
   return {
     play,
