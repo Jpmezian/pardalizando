@@ -21,10 +21,18 @@ import {
 import { LEAGUES, continentOf } from '@/data/loaders';
 import { clearSave, hasSavedGame, loadGame, persistGame } from '@/save/saveStore';
 import { createRng, seedFromString } from '@/engine/rng';
-import { pickBestXI, teamStrength, type SectorStrength } from '@/engine/ratings';
+import { pickBestXI, teamStrength, type FilledSlot, type SectorStrength } from '@/engine/ratings';
 import { formationSubPositions } from '@/engine/formations';
 import { simulateMatch } from '@/engine/match';
-import { buildLineup, clubStrength, lineupStrength, reconcileLineup } from '@/engine/lineup';
+import {
+  buildLineup,
+  clubStrength,
+  lineupFilledSlots,
+  lineupStrength,
+  reconcileLineup,
+} from '@/engine/lineup';
+import { buildMatchPlay, type MatchPlay, type Side } from '@/engine/matchPlay';
+import { CUP_THEMES, type CupKey, type CupTheme } from '@/config/cupThemes';
 import { simulateSeason as runSeason, type SeasonOutcome } from '@/engine/season';
 import { simulateKnockout, type CupEntrant, type CupResult } from '@/engine/cup';
 import { simulateCompetition, type CompetitionResult } from '@/engine/competition';
@@ -61,6 +69,7 @@ export type Screen =
   | 'league-view'
   | 'competition'
   | 'club'
+  | 'cup-match'
   | 'fired';
 
 export type ViewedCompetition =
@@ -101,6 +110,23 @@ export interface CupsView {
   mundial: CupResult;
 }
 
+/** Cinematic de um jogo de copa em exibição (transiente). */
+export interface CupMatchView {
+  play: MatchPlay;
+  theme: CupTheme;
+  roundName: string;
+  managedSide: Side | null;
+  returnScreen: Screen;
+}
+
+/** Tie/jogo mínimo pra montar o cinematic. */
+export interface WatchableMatch {
+  homeId: string;
+  awayId: string;
+  homeGoals: number;
+  awayGoals: number;
+}
+
 /** Resultado de uma partida pronto pra exibição (transiente, não vai pro save). */
 export interface MatchView {
   homeName: string;
@@ -137,6 +163,42 @@ function buildGameForClub(clubId: string): GameState {
     boardConfidence: BOARD_START,
     transferredOut: [],
   };
+}
+
+const SCORER_WEIGHT: Record<string, number> = {
+  ST: 1.0,
+  LW: 0.8,
+  RW: 0.8,
+  AM: 0.6,
+  CM: 0.35,
+  DM: 0.2,
+  LB: 0.15,
+  RB: 0.15,
+  CB: 0.1,
+  GK: 0.02,
+};
+
+/** Monta o time pro cinematic: nome + finalizadores ponderados (posição × overall). */
+function clubPlayTeam(game: GameState, clubId: string): { name: string; scorers: { name: string; weight: number }[] } {
+  const inGame = game.clubs[clubId];
+  const name = inGame?.name ?? getClub(clubId)?.name ?? clubId;
+  let xi: FilledSlot[] = [];
+  if (clubId === game.managedClubId && game.lineup) {
+    xi = lineupFilledSlots(game, game.lineup);
+  } else if (inGame) {
+    const players = inGame.squad
+      .map((id) => game.players[id])
+      .filter((player): player is Player => player !== undefined);
+    xi = pickBestXI(players, formationSubPositions('4-3-3'));
+  } else {
+    const dataset = getClub(clubId);
+    if (dataset) xi = pickBestXI(getClubPlayers(dataset), formationSubPositions('4-3-3'));
+  }
+  const scorers = xi.map((slot) => ({
+    name: slot.player.name,
+    weight: (SCORER_WEIGHT[slot.subPos] ?? 0.2) * slot.player.ovr ** 2,
+  }));
+  return { name, scorers };
 }
 
 /** Força de um clube a partir dos dados embarcados (pra adversários de outras ligas). */
@@ -222,6 +284,8 @@ interface GameStore {
   lastInjuries: InjuryEvent[] | null;
   /** Transferências da IA na última virada de temporada (transiente). */
   lastTransfers: TransferNews[] | null;
+  /** Jogo de copa em exibição no cinematic (transiente). */
+  cupMatch: CupMatchView | null;
   /** Qual competição está aberta na tela de chaveamento. */
   viewedCompetition: ViewedCompetition | null;
   /** Clube aberto na tela de clube + de onde veio (pra voltar). */
@@ -259,6 +323,8 @@ interface GameStore {
   goToHistory: () => void;
   goToLeagueView: () => void;
   goToCompetition: (competition: ViewedCompetition) => void;
+  watchCupMatch: (match: WatchableMatch, competition: CupKey, roundName: string) => void;
+  exitCupMatch: () => void;
   backToSeasonResults: () => void;
   goToClub: (clubId: string) => void;
   backFromClub: () => void;
@@ -360,6 +426,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     lastCups: null,
     lastInjuries: null,
     lastTransfers: null,
+    cupMatch: null,
     viewedCompetition: null,
     viewedClubId: null,
     clubReturnScreen: 'squad',
@@ -854,6 +921,40 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     goToCompetition(competition) {
       set({ viewedCompetition: competition, screen: 'competition' });
+    },
+
+    watchCupMatch(match, competition, roundName) {
+      const { game, screen } = get();
+      if (!game) return;
+      const rng = createRng(
+        seedFromString(
+          `${game.seed}:cupmatch:${competition}:${match.homeId}:${match.awayId}:${match.homeGoals}:${match.awayGoals}`,
+        ),
+      );
+      const home = clubPlayTeam(game, match.homeId);
+      const away = clubPlayTeam(game, match.awayId);
+      const play = buildMatchPlay(home, away, match.homeGoals, match.awayGoals, rng);
+      const managedSide: Side | null =
+        match.homeId === game.managedClubId
+          ? 'home'
+          : match.awayId === game.managedClubId
+            ? 'away'
+            : null;
+      set({
+        cupMatch: {
+          play,
+          theme: CUP_THEMES[competition],
+          roundName,
+          managedSide,
+          returnScreen: screen === 'cup-match' ? 'competition' : screen,
+        },
+        screen: 'cup-match',
+      });
+    },
+
+    exitCupMatch() {
+      const { cupMatch } = get();
+      set({ screen: cupMatch?.returnScreen ?? 'season-results', cupMatch: null });
     },
 
     backToSeasonResults() {

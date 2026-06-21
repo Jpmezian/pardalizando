@@ -20,6 +20,7 @@ export function CompetitionScreen(): JSX.Element {
   const cups = useGameStore((state) => state.lastCups);
   const viewed = useGameStore((state) => state.viewedCompetition);
   const backToSeasonResults = useGameStore((state) => state.backToSeasonResults);
+  const watchCupMatch = useGameStore((state) => state.watchCupMatch);
 
   if (!game || !cups || !viewed) {
     return (
@@ -129,6 +130,26 @@ export function CompetitionScreen(): JSX.Element {
                             <p className="text-right text-[10px] uppercase tracking-broadcast text-ink-faint">
                               pênaltis
                             </p>
+                          ) : null}
+                          {involvesManaged ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                watchCupMatch(
+                                  {
+                                    homeId: tie.homeId,
+                                    awayId: tie.awayId,
+                                    homeGoals: tie.homeGoals,
+                                    awayGoals: tie.awayGoals,
+                                  },
+                                  viewed,
+                                  round.name,
+                                )
+                              }
+                              className="mt-1 w-full border border-accent/50 py-1 font-sans text-[10px] font-bold uppercase tracking-broadcast text-accent transition-colors duration-150 hover:bg-accent hover:text-accent-ink"
+                            >
+                              ▶ Assistir
+                            </button>
                           ) : null}
                         </li>
                       );

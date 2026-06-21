@@ -15,6 +15,7 @@ import { LeagueViewScreen } from '@/screens/LeagueViewScreen';
 import { CompetitionScreen } from '@/screens/CompetitionScreen';
 import { ClubDetailScreen } from '@/screens/ClubDetailScreen';
 import { FiredScreen } from '@/screens/FiredScreen';
+import { CupMatchScreen } from '@/screens/CupMatchScreen';
 
 export function App(): JSX.Element {
   const screen = useGameStore((state) => state.screen);
@@ -51,6 +52,8 @@ export function App(): JSX.Element {
       return <CompetitionScreen />;
     case 'club':
       return <ClubDetailScreen />;
+    case 'cup-match':
+      return <CupMatchScreen />;
     case 'fired':
       return <FiredScreen />;
     case 'start':

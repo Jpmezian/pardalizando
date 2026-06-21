@@ -205,6 +205,51 @@ body {
   animation: confetti-fall linear infinite;
 }
 
+/* Cinematic de copa: o grito do chute e o estouro do gol. */
+@keyframes cup-shout {
+  0% {
+    transform: scale(1.35) translateY(6px);
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.cup-shout {
+  animation: cup-shout 240ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+}
+
+@keyframes cup-flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.cup-flash {
+  animation: cup-flash 700ms ease-out both;
+}
+
+@keyframes ball-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ball-spin {
+  animation: ball-spin 0.6s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .signal-dot,
   .pack-pop,
@@ -212,7 +257,10 @@ body {
   .blob,
   .poster-rise,
   .tc-title,
-  .confetti-piece {
+  .confetti-piece,
+  .cup-shout,
+  .cup-flash,
+  .ball-spin {
     animation: none;
   }
   .poster-shine::after {
