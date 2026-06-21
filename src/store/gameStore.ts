@@ -34,8 +34,9 @@ import {
 import { buildMatchPlay, type MatchPlay, type Side } from '@/engine/matchPlay';
 import { CUP_THEMES, type CupKey, type CupTheme } from '@/config/cupThemes';
 import { simulateSeason as runSeason, type SeasonOutcome } from '@/engine/season';
-import { simulateKnockout, type CupEntrant, type CupResult } from '@/engine/cup';
+import { simulateKnockout, type CupEntrant, type CupResult, type CupRound } from '@/engine/cup';
 import { simulateCompetition, type CompetitionResult } from '@/engine/competition';
+import { teamColorPair } from '@/lib/teamColor';
 import { openPack as runOpenPack, sellValue } from '@/engine/market';
 import { spinRoulette as runSpin } from '@/engine/roulette';
 import { generateSeasonInjuries, type InjuryEvent } from '@/engine/injuries';
@@ -116,6 +117,14 @@ export interface CupMatchView {
   theme: CupTheme;
   roundName: string;
   managedSide: Side | null;
+  homeColor: string;
+  awayColor: string;
+}
+
+/** Fila de cinematics tocando em sequência (durante a simulação ou re-assistindo). */
+export interface CupQueue {
+  matches: CupMatchView[];
+  index: number;
   returnScreen: Screen;
 }
 
@@ -201,6 +210,69 @@ function clubPlayTeam(game: GameState, clubId: string): { name: string; scorers:
   return { name, scorers };
 }
 
+/** Monta o cinematic de um jogo de copa (narração + tema + cores dos times). */
+function makeCupMatchView(
+  game: GameState,
+  match: WatchableMatch,
+  competition: CupKey,
+  roundName: string,
+): CupMatchView {
+  const rng = createRng(
+    seedFromString(
+      `${game.seed}:cupmatch:${competition}:${match.homeId}:${match.awayId}:${match.homeGoals}:${match.awayGoals}`,
+    ),
+  );
+  const home = clubPlayTeam(game, match.homeId);
+  const away = clubPlayTeam(game, match.awayId);
+  const play = buildMatchPlay(home, away, match.homeGoals, match.awayGoals, rng);
+  const managedSide: Side | null =
+    match.homeId === game.managedClubId ? 'home' : match.awayId === game.managedClubId ? 'away' : null;
+  const colors = teamColorPair(match.homeId, match.awayId);
+  return {
+    play,
+    theme: CUP_THEMES[competition],
+    roundName,
+    managedSide,
+    homeColor: colors.home,
+    awayColor: colors.away,
+  };
+}
+
+/** Junta os jogos de copa do clube gerido pra tocar em sequência durante a simulação. */
+function buildCupQueue(game: GameState, cups: CupsView): CupMatchView[] {
+  const managedId = game.managedClubId;
+  if (!managedId) return [];
+  const found: { key: CupKey; round: string; match: WatchableMatch }[] = [];
+  const collect = (key: CupKey, rounds: CupRound[]): void => {
+    for (const round of rounds) {
+      for (const tie of round.ties) {
+        if (tie.bye) continue;
+        if (tie.homeId === managedId || tie.awayId === managedId) {
+          found.push({
+            key,
+            round: round.name,
+            match: {
+              homeId: tie.homeId,
+              awayId: tie.awayId,
+              homeGoals: tie.homeGoals,
+              awayGoals: tie.awayGoals,
+            },
+          });
+        }
+      }
+    }
+  };
+  collect('national', cups.national.rounds);
+  collect('champions', cups.champions.knockout);
+  collect('europa', cups.europa.knockout);
+  collect('conference', cups.conference.knockout);
+  collect('libertadores', cups.libertadores.knockout);
+  collect('sudamericana', cups.sudamericana.knockout);
+  collect('mundial', cups.mundial.rounds);
+  // Mantém os jogos mais decisivos (rodadas finais) se a campanha foi longa.
+  return found.slice(-8).map((entry) => makeCupMatchView(game, entry.match, entry.key, entry.round));
+}
+
 /** Força de um clube a partir dos dados embarcados (pra adversários de outras ligas). */
 function datasetStrength(club: Club, out?: Set<string>): SectorStrength {
   const players =
@@ -284,8 +356,8 @@ interface GameStore {
   lastInjuries: InjuryEvent[] | null;
   /** Transferências da IA na última virada de temporada (transiente). */
   lastTransfers: TransferNews[] | null;
-  /** Jogo de copa em exibição no cinematic (transiente). */
-  cupMatch: CupMatchView | null;
+  /** Fila de cinematics de copa em exibição (transiente). */
+  cupQueue: CupQueue | null;
   /** Qual competição está aberta na tela de chaveamento. */
   viewedCompetition: ViewedCompetition | null;
   /** Clube aberto na tela de clube + de onde veio (pra voltar). */
@@ -324,7 +396,8 @@ interface GameStore {
   goToLeagueView: () => void;
   goToCompetition: (competition: ViewedCompetition) => void;
   watchCupMatch: (match: WatchableMatch, competition: CupKey, roundName: string) => void;
-  exitCupMatch: () => void;
+  advanceCupMatch: () => void;
+  skipCupCinematics: () => void;
   backToSeasonResults: () => void;
   goToClub: (clubId: string) => void;
   backFromClub: () => void;
@@ -426,7 +499,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     lastCups: null,
     lastInjuries: null,
     lastTransfers: null,
-    cupMatch: null,
+    cupQueue: null,
     viewedCompetition: null,
     viewedClubId: null,
     clubReturnScreen: 'squad',
@@ -597,7 +670,13 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
 
     finishSimulating() {
-      set({ screen: 'replay' });
+      const { game, lastCups } = get();
+      const matches = game && lastCups ? buildCupQueue(game, lastCups) : [];
+      if (matches.length > 0) {
+        set({ cupQueue: { matches, index: 0, returnScreen: 'replay' }, screen: 'cup-match' });
+      } else {
+        set({ screen: 'replay' });
+      }
     },
 
     backToStart() {
@@ -926,35 +1005,30 @@ export const useGameStore = create<GameStore>((set, get) => {
     watchCupMatch(match, competition, roundName) {
       const { game, screen } = get();
       if (!game) return;
-      const rng = createRng(
-        seedFromString(
-          `${game.seed}:cupmatch:${competition}:${match.homeId}:${match.awayId}:${match.homeGoals}:${match.awayGoals}`,
-        ),
-      );
-      const home = clubPlayTeam(game, match.homeId);
-      const away = clubPlayTeam(game, match.awayId);
-      const play = buildMatchPlay(home, away, match.homeGoals, match.awayGoals, rng);
-      const managedSide: Side | null =
-        match.homeId === game.managedClubId
-          ? 'home'
-          : match.awayId === game.managedClubId
-            ? 'away'
-            : null;
+      const view = makeCupMatchView(game, match, competition, roundName);
       set({
-        cupMatch: {
-          play,
-          theme: CUP_THEMES[competition],
-          roundName,
-          managedSide,
+        cupQueue: {
+          matches: [view],
+          index: 0,
           returnScreen: screen === 'cup-match' ? 'competition' : screen,
         },
         screen: 'cup-match',
       });
     },
 
-    exitCupMatch() {
-      const { cupMatch } = get();
-      set({ screen: cupMatch?.returnScreen ?? 'season-results', cupMatch: null });
+    advanceCupMatch() {
+      const { cupQueue } = get();
+      if (!cupQueue) return;
+      if (cupQueue.index + 1 < cupQueue.matches.length) {
+        set({ cupQueue: { ...cupQueue, index: cupQueue.index + 1 } });
+      } else {
+        set({ screen: cupQueue.returnScreen, cupQueue: null });
+      }
+    },
+
+    skipCupCinematics() {
+      const { cupQueue } = get();
+      set({ screen: cupQueue?.returnScreen ?? 'replay', cupQueue: null });
     },
 
     backToSeasonResults() {

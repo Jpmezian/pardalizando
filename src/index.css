@@ -250,6 +250,41 @@ body {
   animation: ball-spin 0.6s linear infinite;
 }
 
+/* Setas de ataque marchando rumo ao gol (cor do time). */
+@keyframes cup-march {
+  0% {
+    transform: translateX(-6px);
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(10px);
+    opacity: 0.3;
+  }
+}
+
+.cup-march {
+  animation: cup-march 1.4s ease-in-out infinite;
+}
+
+/* Entrada do modal do chute. */
+@keyframes cup-modal-in {
+  from {
+    transform: scale(0.92) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.cup-modal-in {
+  animation: cup-modal-in 200ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .signal-dot,
   .pack-pop,
@@ -260,6 +295,8 @@ body {
   .confetti-piece,
   .cup-shout,
   .cup-flash,
+  .cup-march,
+  .cup-modal-in,
   .ball-spin {
     animation: none;
   }

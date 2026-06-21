@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { Club, GameState, Player, PlayerSeasonStats } from '@/types';
 import type { SeasonOutcome } from '@/engine/season';
-import type { CupResult, CupRound, CupTie } from '@/engine/cup';
+import type { CupResult, CupTie } from '@/engine/cup';
 import type { CompetitionResult } from '@/engine/competition';
-import { CUP_THEMES, type CupKey } from '@/config/cupThemes';
 import type { InjuryEvent } from '@/engine/injuries';
 import { computeSeasonAwards } from '@/engine/awards';
 import { BOARD_START, cupConfidence, evaluateBoard } from '@/engine/board';
@@ -676,30 +675,9 @@ interface CupsTabProps {
 
 function CupsTab({ game, cups, managedId }: CupsTabProps): JSX.Element {
   const goToCompetition = useGameStore((state) => state.goToCompetition);
-  const watchCupMatch = useGameStore((state) => state.watchCupMatch);
   if (!cups) {
     return <p className="font-sans text-ink-muted">Sem copas nesta temporada.</p>;
   }
-
-  // Junta TODOS os jogos de copa do seu time pra "assistir" (aparece na simulação).
-  const myMatches: { key: CupKey; round: string; tie: CupTie }[] = [];
-  const collect = (key: CupKey, rounds: CupRound[]): void => {
-    for (const round of rounds) {
-      for (const tie of round.ties) {
-        if (tie.bye) continue;
-        if (tie.homeId === managedId || tie.awayId === managedId) {
-          myMatches.push({ key, round: round.name, tie });
-        }
-      }
-    }
-  };
-  collect('national', cups.national.rounds);
-  collect('champions', cups.champions.knockout);
-  collect('europa', cups.europa.knockout);
-  collect('conference', cups.conference.knockout);
-  collect('libertadores', cups.libertadores.knockout);
-  collect('sudamericana', cups.sudamericana.knockout);
-  collect('mundial', cups.mundial.rounds);
 
   const viewButton = (label: string, competition: ViewedCompetition): JSX.Element => (
     <button
@@ -725,52 +703,10 @@ function CupsTab({ game, cups, managedId }: CupsTabProps): JSX.Element {
         ];
 
   return (
-    <div className="flex flex-col gap-5">
-      {myMatches.length > 0 ? (
-        <div className="border border-accent/40 bg-surface p-3">
-          <p className="mb-2 font-display text-lg font-bold uppercase tracking-wide text-accent">
-            ▶ Seus jogos de copa
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {myMatches.map(({ key, round, tie }, index) => {
-              const oppId = tie.homeId === managedId ? tie.awayId : tie.homeId;
-              const myGoals = tie.homeId === managedId ? tie.homeGoals : tie.awayGoals;
-              const oppGoals = tie.homeId === managedId ? tie.awayGoals : tie.homeGoals;
-              return (
-                <button
-                  key={`${key}-${index}`}
-                  type="button"
-                  onClick={() =>
-                    watchCupMatch(
-                      {
-                        homeId: tie.homeId,
-                        awayId: tie.awayId,
-                        homeGoals: tie.homeGoals,
-                        awayGoals: tie.awayGoals,
-                      },
-                      key,
-                      round,
-                    )
-                  }
-                  className="flex items-center gap-2 border border-line px-3 py-1.5 text-left transition-colors duration-150 hover:border-accent hover:bg-surface-raised"
-                >
-                  <span className="font-sans text-[10px] font-semibold uppercase tracking-broadcast text-ink-faint">
-                    {CUP_THEMES[key].label} · {round}
-                  </span>
-                  <span className="font-display text-sm font-bold">
-                    vs {clubName(game, oppId)} {myGoals}–{oppGoals}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <CupView game={game} cup={cups.mundial} title="Mundial de Clubes" managedId={managedId} />
-          {viewButton('Ver chaveamento', 'mundial')}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
+        <CupView game={game} cup={cups.mundial} title="Mundial de Clubes" managedId={managedId} />
+        {viewButton('Ver chaveamento', 'mundial')}
       </div>
       <div>
         <CupView game={game} cup={cups.national} title="Copa Nacional" managedId={managedId} />
@@ -786,8 +722,7 @@ function CupsTab({ game, cups, managedId }: CupsTabProps): JSX.Element {
           />
           {viewButton('Ver grupos & chaveamento', comp.key)}
         </div>
-        ))}
-      </div>
+      ))}
     </div>
   );
 }
