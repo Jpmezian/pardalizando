@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Club, GameState, Player, PlayerSeasonStats } from '@/types';
 import type { SeasonOutcome } from '@/engine/season';
 import type { CupResult, CupTie } from '@/engine/cup';
@@ -7,7 +7,7 @@ import type { InjuryEvent } from '@/engine/injuries';
 import { computeSeasonAwards } from '@/engine/awards';
 import { BOARD_START, evaluateBoard } from '@/engine/board';
 import { useGameStore, type CupsView, type ViewedCompetition } from '@/store/gameStore';
-import { getClub } from '@/data/dataset';
+import { getAllPlayers, getClub } from '@/data/dataset';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
 import { BroadcastButton } from '@/components/BroadcastButton';
 import { ClubLink } from '@/components/ClubLink';
@@ -164,7 +164,7 @@ export function SeasonResultsScreen(): JSX.Element {
           {tab === 'scorers' ? <Scorers game={game} season={season} /> : null}
           {tab === 'squad' ? <SquadStats game={game} club={managedClub} /> : null}
           {tab === 'cups' ? <CupsTab game={game} cups={cups} managedId={managedClub.id} /> : null}
-          {tab === 'prizes' ? <AwardsTab game={game} season={season} /> : null}
+          {tab === 'prizes' ? <AwardsTab game={game} season={season} cups={cups} /> : null}
           {tab === 'injuries' ? <InjuriesTab injuries={injuries} /> : null}
         </div>
 
@@ -445,15 +445,29 @@ function awardSubtitle(
   }
 }
 
-function AwardsTab({ game, season }: SeasonContentProps): JSX.Element {
-  const awards = computeSeasonAwards(game.players, season.stats);
+function AwardsTab({
+  game,
+  season,
+  cups,
+}: SeasonContentProps & { cups: CupsView | null }): JSX.Element {
+  // Mundo todo: jogadores do dataset, com a sua liga sobreposta pela versão evoluída.
+  const worldPlayers = useMemo(() => {
+    const byId = new Map(getAllPlayers().map((entry) => [entry.id, entry]));
+    for (const entry of Object.values(game.players)) byId.set(entry.id, entry);
+    return [...byId.values()];
+  }, [game.players]);
+
+  const awards = useMemo(
+    () => computeSeasonAwards(worldPlayers, season.stats, cups?.champions, cups?.libertadores),
+    [worldPlayers, season.stats, cups],
+  );
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {AWARD_DEFS.map((def) => {
         const winner = awards[def.key];
-        const player = winner ? game.players[winner.playerId] : undefined;
-        const stats = winner ? season.stats[winner.playerId] : undefined;
-        if (!winner || !player || !stats) return null;
+        if (!winner) return null;
+        const { player, stats } = winner;
         return (
           <div key={def.key}>
             <Poster

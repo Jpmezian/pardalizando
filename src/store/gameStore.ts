@@ -160,10 +160,26 @@ function continentalField(game: GameState, lineup: Lineup, continent: Continent)
     field.push(managedClub);
   }
 
-  return field.map((club) => ({
+  const entrants = field.map((club) => ({
     clubId: club.id,
     strength: club.id === managedId ? lineupStrength(game, lineup) : datasetStrength(club),
   }));
+
+  // A competição joga só com um campo de potências de 4 (até 32). Recorta pelos mais fortes,
+  // MAS garante o seu clube — ele se classificou pela liga, não pode ser cortado em silêncio.
+  const force = (s: SectorStrength): number => s.atk + s.mid + s.def;
+  const ranked = entrants.sort((a, b) => force(b.strength) - force(a.strength));
+  const groupCount = Math.min(8, Math.floor(ranked.length / 4));
+  const fieldSize = groupCount >= 2 ? groupCount * 4 : Math.min(16, ranked.length);
+
+  let kept = ranked.slice(0, fieldSize);
+  const managedInField =
+    managedClub && managedContinent === continent ? managedClub.id : null;
+  if (managedInField && !kept.some((entry) => entry.clubId === managedInField)) {
+    const managedEntry = ranked.find((entry) => entry.clubId === managedInField);
+    if (managedEntry) kept = [...ranked.slice(0, fieldSize - 1), managedEntry];
+  }
+  return kept;
 }
 
 interface GameStore {
