@@ -52,9 +52,10 @@ const SUBPOS_MAP = {
   LB: 'LB', LWB: 'LB',
   RB: 'RB', RWB: 'RB',
   CDM: 'DM', DM: 'DM',
-  CM: 'CM', RCM: 'CM', LCM: 'CM', LM: 'CM', RM: 'CM',
+  CM: 'CM', RCM: 'CM', LCM: 'CM',
   CAM: 'AM', AM: 'AM',
-  LW: 'LW', RW: 'RW',
+  // LM/RM (meia de lado no dataset EA) são pontas no nosso modelo de 10 posições.
+  LM: 'LW', LW: 'LW', RM: 'RW', RW: 'RW',
   CF: 'ST', ST: 'ST', RS: 'ST', LS: 'ST', RF: 'ST', LF: 'ST',
 };
 const POS_OF_SUBPOS = {

@@ -317,9 +317,21 @@ export const useGameStore = create<GameStore>((set, get) => {
     async continueGame() {
       const loaded = await loadGame();
       if (!loaded) return;
+      // Re-sincroniza posição e nacionalidade com o dataset atual (corrige saves
+      // antigos com posições erradas, ex.: ponta caído em CM). NÃO toca em
+      // ovr/idade/valor — esses evoluem na progressão.
+      const datasetById = new Map(getAllPlayers().map((player) => [player.id, player]));
+      const players: Record<string, Player> = {};
+      for (const [id, player] of Object.entries(loaded.players)) {
+        const ref = datasetById.get(id);
+        players[id] = ref
+          ? { ...player, subPos: ref.subPos, pos: ref.pos, nationality: ref.nationality }
+          : player;
+      }
       // Normaliza saves antigos que não tinham o pity do mercado (M5).
       const game: GameState = {
         ...loaded,
+        players,
         packs: { goldenTickets: loaded.packs.goldenTickets, goldPity: loaded.packs.goldPity ?? 0 },
         lineup: loaded.lineup ? { ...loaded.lineup, bench: loaded.lineup.bench ?? [] } : null,
         boardConfidence: loaded.boardConfidence ?? BOARD_START,
