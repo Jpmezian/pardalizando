@@ -61,36 +61,36 @@ export function CompetitionScreen(): JSX.Element {
 
         {groups.length > 0 ? (
           <section className="mt-6">
-            <h2 className="mb-3 font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
-              Fase de grupos
+            <h2 className="mb-1 font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
+              Fase de liga
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {groups.map((group) => (
-                <div key={group.name} className="border border-line bg-surface p-3">
-                  <p className="mb-2 font-display text-lg font-bold uppercase">{group.name}</p>
-                  <ul>
-                    {group.table.map((row, index) => {
-                      const qualified = index < 2;
-                      const isManaged = row.clubId === managedId;
-                      return (
-                        <li
-                          key={row.clubId}
-                          className={`flex items-center justify-between gap-2 py-0.5 text-sm ${
-                            isManaged ? 'font-bold text-accent' : qualified ? 'text-ink' : 'text-ink-faint'
-                          }`}
-                        >
-                          <span className="flex items-center gap-1.5 truncate">
-                            <span className="w-3 text-ink-faint">{index + 1}</span>
-                            <ClubLink clubId={row.clubId} name={name(row.clubId)} className="truncate" />
-                          </span>
-                          <span className="font-display font-bold tabular-nums">{row.points}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <p className="mb-3 font-sans text-xs text-ink-faint">
+              <span className="text-accent">1–8</span> vão direto às oitavas ·{' '}
+              <span className="text-ink">9–24</span> jogam o playoff · 25+ eliminados
+            </p>
+            {groups.map((group) => (
+              <ul key={group.name} className="gap-x-8 sm:columns-2 lg:columns-3">
+                {group.table.map((row, index) => {
+                  const isManaged = row.clubId === managedId;
+                  const tone =
+                    index < 8 ? 'text-accent' : index < 24 ? 'text-ink' : 'text-ink-faint';
+                  return (
+                    <li
+                      key={row.clubId}
+                      className={`flex items-center justify-between gap-2 break-inside-avoid border-b border-line py-1 text-sm ${
+                        isManaged ? 'font-bold text-accent' : tone
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span className="w-5 text-right text-ink-faint">{index + 1}</span>
+                        <ClubLink clubId={row.clubId} name={name(row.clubId)} className="truncate" />
+                      </span>
+                      <span className="font-display font-bold tabular-nums">{row.points}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ))}
           </section>
         ) : null}
 

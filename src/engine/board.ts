@@ -47,20 +47,44 @@ export interface BoardVerdict {
   fired: boolean;
 }
 
+export interface CupFlags {
+  nationalCup: boolean;
+  lowContinental: boolean;
+  midContinental: boolean;
+  topContinental: boolean;
+  mundial: boolean;
+}
+
+/** Bônus de confiança da diretoria por taças conquistadas (copas contam!). */
+export function cupConfidence(flags: CupFlags): number {
+  return (
+    (flags.nationalCup ? 6 : 0) +
+    (flags.lowContinental ? 6 : 0) +
+    (flags.midContinental ? 10 : 0) +
+    (flags.topContinental ? 14 : 0) +
+    (flags.mundial ? 20 : 0)
+  );
+}
+
 /**
  * Avalia a temporada: cumpriu o alvo → confiança sobe (bônus por superar);
- * falhou → cai mais quanto mais longe ficou do alvo. Confiança em 0 = demitido.
+ * falhou → cai mais quanto mais longe ficou do alvo. Taças dão bônus de confiança
+ * (cupBonus) e levantar um continental conta como cumprir o objetivo. Confiança 0 = demitido.
  */
 export function evaluateBoard(
   reputation: number,
   clubCount: number,
   position: number,
   confidence: number,
+  cupBonus = 0,
 ): BoardVerdict {
   const objective = seasonObjective(reputation, clubCount);
   const margin = objective.target - position; // >= 0 cumpriu/superou
-  const met = margin >= 0;
-  const delta = met ? Math.min(25, 10 + margin * 3) : Math.max(-55, -12 + margin * 10);
+  const met = margin >= 0 || cupBonus >= 14; // ganhar um continental conta como cumprir
+  const baseDelta = met
+    ? Math.min(25, 10 + Math.max(0, margin) * 3)
+    : Math.max(-55, -12 + margin * 10);
+  const delta = Math.max(-55, Math.min(45, baseDelta + cupBonus));
   const confidenceAfter = clamp(confidence + delta, 0, BOARD_MAX);
   return {
     objective,

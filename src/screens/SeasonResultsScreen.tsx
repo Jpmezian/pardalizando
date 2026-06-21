@@ -5,7 +5,8 @@ import type { CupResult, CupTie } from '@/engine/cup';
 import type { CompetitionResult } from '@/engine/competition';
 import type { InjuryEvent } from '@/engine/injuries';
 import { computeSeasonAwards } from '@/engine/awards';
-import { BOARD_START, evaluateBoard } from '@/engine/board';
+import { BOARD_START, cupConfidence, evaluateBoard } from '@/engine/board';
+import { fullSeasonRewards } from '@/config/economy';
 import { useGameStore, type CupsView, type ViewedCompetition } from '@/store/gameStore';
 import { getAllPlayers, getClub } from '@/data/dataset';
 import { continentOf } from '@/data/loaders';
@@ -14,7 +15,7 @@ import { BroadcastButton } from '@/components/BroadcastButton';
 import { ClubLink } from '@/components/ClubLink';
 import { Poster } from '@/components/Poster';
 import { TripleCrownOverlay } from '@/components/TripleCrownOverlay';
-import { findCaptainId, seasonYearLabel } from '@/lib/format';
+import { findCaptainId, formatMoney, seasonYearLabel } from '@/lib/format';
 
 type ResultsTab = 'table' | 'scorers' | 'squad' | 'cups' | 'prizes' | 'injuries';
 
@@ -44,12 +45,25 @@ export function SeasonResultsScreen(): JSX.Element {
 
   const position = season.table.findIndex((row) => row.clubId === managedClub.id) + 1;
   const isChampion = position === 1;
+  const cupFlags = {
+    nationalCup: cups?.national.championId === managedClub.id,
+    topContinental:
+      cups?.champions.championId === managedClub.id ||
+      cups?.libertadores.championId === managedClub.id,
+    midContinental:
+      cups?.europa.championId === managedClub.id ||
+      cups?.sudamericana.championId === managedClub.id,
+    lowContinental: cups?.conference.championId === managedClub.id,
+    mundial: cups?.mundial.championId === managedClub.id,
+  };
   const verdict = evaluateBoard(
     managedClub.reputation,
     season.table.length,
     position,
     game.boardConfidence ?? BOARD_START,
+    cupConfidence(cupFlags),
   );
+  const rewards = fullSeasonRewards(position, season.table.length, cupFlags);
 
   const trophies: Array<{ kicker: string; title: string; subtitle: string }> = [];
   if (cups?.mundial.championId === managedClub.id) {
@@ -206,8 +220,37 @@ export function SeasonResultsScreen(): JSX.Element {
           {tab === 'injuries' ? <InjuriesTab injuries={injuries} /> : null}
         </div>
 
+        <div className="mt-6 border border-line bg-surface px-4 py-3">
+          <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
+            Premiação da temporada
+          </p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {rewards.lines.map((line) => (
+              <li
+                key={line.label}
+                className="flex items-center justify-between gap-3 font-sans text-sm"
+              >
+                <span className="text-ink-muted">{line.label}</span>
+                <span className="tabular-nums">
+                  <span className="font-semibold text-ink">{formatMoney(line.budget)}</span>
+                  {line.tickets > 0 ? (
+                    <span className="text-accent"> · {line.tickets} ficha{line.tickets > 1 ? 's' : ''}</span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex items-center justify-between gap-3 border-t border-line pt-2 font-display text-lg font-bold uppercase">
+            <span>Total</span>
+            <span className="tabular-nums text-accent">
+              {formatMoney(rewards.budget)}
+              {rewards.tickets > 0 ? ` · ${rewards.tickets} fichas` : ''}
+            </span>
+          </div>
+        </div>
+
         {confirmAdvance ? (
-          <div className="mt-8 border border-line bg-surface p-4">
+          <div className="mt-6 border border-line bg-surface p-4">
             <p className="font-sans text-sm text-ink-muted">
               Avançar fecha a temporada de vez — aplica progressão, lesões e mercado da IA, e{' '}
               <span className="text-ink">não dá pra voltar atrás</span>. Confirmar?

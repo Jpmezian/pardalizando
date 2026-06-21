@@ -128,8 +128,62 @@ export interface SeasonReward {
 /** Receita + fichas pela posição final (alimenta a temporada seguinte). */
 export function seasonReward(position: number, clubCount: number): SeasonReward {
   if (position === 1) return { budget: 60_000_000, tickets: 3 };
-  if (position <= 4) return { budget: 30_000_000, tickets: 1 };
-  if (position <= clubCount / 2) return { budget: 15_000_000, tickets: 0 };
+  if (position <= 4) return { budget: 32_000_000, tickets: 1 };
+  if (position <= 6) return { budget: 22_000_000, tickets: 1 }; // vaga europeia
+  if (position <= clubCount / 2) return { budget: 14_000_000, tickets: 0 };
   return { budget: 8_000_000, tickets: 0 };
+}
+
+export interface RewardLine {
+  label: string;
+  budget: number;
+  tickets: number;
+}
+
+export interface SeasonRewardFlags {
+  nationalCup: boolean;
+  topContinental: boolean;
+  midContinental: boolean;
+  lowContinental: boolean;
+  mundial: boolean;
+}
+
+function positionLabel(position: number, clubCount: number): string {
+  if (position === 1) return 'Campeão da liga';
+  if (position <= 4) return `${position}º lugar · vaga na elite`;
+  if (position <= 6) return `${position}º lugar · vaga europeia`;
+  if (position <= clubCount / 2) return `${position}º lugar · 1ª metade`;
+  return `${position}º lugar`;
+}
+
+/** Premiação total da temporada (liga + copas) com as linhas pra mostrar ao jogador. */
+export function fullSeasonRewards(
+  position: number,
+  clubCount: number,
+  flags: SeasonRewardFlags,
+): { budget: number; tickets: number; lines: RewardLine[] } {
+  const base = seasonReward(position, clubCount);
+  const lines: RewardLine[] = [
+    { label: positionLabel(position, clubCount), budget: base.budget, tickets: base.tickets },
+  ];
+  if (flags.nationalCup) lines.push({ label: 'Copa Nacional', budget: 20_000_000, tickets: 0 });
+  const continentalBudget = flags.topContinental
+    ? 40_000_000
+    : flags.midContinental
+      ? 22_000_000
+      : flags.lowContinental
+        ? 12_000_000
+        : 0;
+  if (continentalBudget > 0) {
+    lines.push({
+      label: 'Continental',
+      budget: continentalBudget,
+      tickets: flags.topContinental ? 2 : flags.midContinental ? 1 : 0,
+    });
+  }
+  if (flags.mundial) lines.push({ label: 'Mundial de Clubes', budget: 30_000_000, tickets: 2 });
+  const budget = lines.reduce((sum, line) => sum + line.budget, 0);
+  const tickets = lines.reduce((sum, line) => sum + line.tickets, 0);
+  return { budget, tickets, lines };
 }
 

@@ -33,8 +33,6 @@ export interface CompetitionResult {
   championId: string | null;
 }
 
-const GROUP_SIZE = 4;
-const MAX_GROUPS = 8;
 const BYE = '__bye__';
 
 function force(strength: SectorStrength): number {
@@ -78,27 +76,6 @@ function rankGroup(rows: GroupRow[]): GroupRow[] {
   );
 }
 
-function playGroup(teams: CupEntrant[], rng: Rng): CompetitionGroup {
-  const table = new Map(teams.map((team) => [team.clubId, emptyRow(team.clubId)]));
-  const matches: GroupMatch[] = [];
-
-  for (let i = 0; i < teams.length; i += 1) {
-    for (let j = i + 1; j < teams.length; j += 1) {
-      const home = teams[i]!;
-      const away = teams[j]!;
-      const result = simulateMatch(home.strength, away.strength, rng);
-      applyMatch(table.get(home.clubId)!, table.get(away.clubId)!, result.homeGoals, result.awayGoals);
-      matches.push({
-        homeId: home.clubId,
-        awayId: away.clubId,
-        homeGoals: result.homeGoals,
-        awayGoals: result.awayGoals,
-      });
-    }
-  }
-
-  return { name: '', table: rankGroup([...table.values()]), matches };
-}
 
 function roundName(teamsInRound: number): string {
   switch (teamsInRound) {
@@ -170,46 +147,112 @@ function runBracket(seeded: CupEntrant[], rng: Rng): { rounds: CupRound[]; champ
   return { rounds, championId: alive[0]?.clubId ?? null };
 }
 
+const LEAGUE_PHASE_ROUNDS = 8; // cada time joga 8 jogos (modelo suíço atual da Champions)
+const LEAGUE_PHASE_SIZE = 36;
+
+/** Fase de liga (modelo suíço): tabela ÚNICA; cada time joga N adversários distintos. */
+function leaguePhase(field: CupEntrant[], rng: Rng): { table: GroupRow[]; matches: GroupMatch[] } {
+  const table = new Map(field.map((team) => [team.clubId, emptyRow(team.clubId)]));
+  const strengthOf = new Map(field.map((team) => [team.clubId, team.strength]));
+  const matches: GroupMatch[] = [];
+
+  // Calendário pelo método do círculo, pegando só os primeiros N rounds.
+  const ids = field.map((team) => team.clubId);
+  if (ids.length % 2 !== 0) ids.push(BYE);
+  const n = ids.length;
+  const arr = [...ids];
+  const rounds = Math.min(LEAGUE_PHASE_ROUNDS, n - 1);
+  for (let r = 0; r < rounds; r += 1) {
+    for (let i = 0; i < n / 2; i += 1) {
+      const homeId = arr[i]!;
+      const awayId = arr[n - 1 - i]!;
+      if (homeId === BYE || awayId === BYE) continue;
+      const result = simulateMatch(strengthOf.get(homeId)!, strengthOf.get(awayId)!, rng);
+      applyMatch(table.get(homeId)!, table.get(awayId)!, result.homeGoals, result.awayGoals);
+      matches.push({ homeId, awayId, homeGoals: result.homeGoals, awayGoals: result.awayGoals });
+    }
+    const rest = arr.slice(1);
+    rest.unshift(rest.pop()!);
+    arr.splice(0, arr.length, arr[0]!, ...rest);
+  }
+
+  return { table: rankGroup([...table.values()]), matches };
+}
+
 /**
- * Competição continental: fase de grupos (grupos de 4, pontos corridos) → os 2
- * melhores de cada grupo avançam pro mata-mata. Como Champions / Libertadores.
+ * Competição continental no formato ATUAL (Champions 2024+): fase de liga (modelo
+ * suíço — 36 times, 8 jogos, tabela única) → top 8 vão direto às oitavas, 9º–24º
+ * jogam um playoff, 25º–36º eliminados → mata-mata até a final.
  */
 export function simulateCompetition(entrants: CupEntrant[], rng: Rng): CompetitionResult {
   const sorted = [...entrants].sort((a, b) => force(b.strength) - force(a.strength));
-  const groupCount = Math.min(MAX_GROUPS, Math.floor(sorted.length / GROUP_SIZE));
 
-  if (groupCount < 2) {
+  if (sorted.length < 8) {
     const bracket = runBracket(sorted.slice(0, 16), rng);
     return { groups: [], knockout: bracket.rounds, championId: bracket.championId };
   }
 
-  const field = sorted.slice(0, groupCount * GROUP_SIZE);
-  const groupTeams: CupEntrant[][] = Array.from({ length: groupCount }, () => []);
-  field.forEach((entrant, index) => {
-    groupTeams[index % groupCount]!.push(entrant);
-  });
+  const field = sorted.slice(0, LEAGUE_PHASE_SIZE);
+  const phase = leaguePhase(field, rng);
+  const byId = new Map(field.map((team) => [team.clubId, team]));
+  const ranked = phase.table
+    .map((row) => byId.get(row.clubId))
+    .filter((team): team is CupEntrant => team !== undefined);
 
-  const groups: CompetitionGroup[] = [];
-  const winners: CupEntrant[] = [];
-  const runners: CupEntrant[] = [];
+  const top = ranked.slice(0, 8); // direto às oitavas
+  const playoffSeeds = ranked.slice(8, 24); // 9º–24º disputam o playoff
+  const knockout: CupRound[] = [];
 
-  groupTeams.forEach((teams, index) => {
-    const group = playGroup(teams, rng);
-    group.name = `Grupo ${String.fromCharCode(65 + index)}`;
-    groups.push(group);
-    const first = teams.find((team) => team.clubId === group.table[0]?.clubId);
-    const second = teams.find((team) => team.clubId === group.table[1]?.clubId);
-    if (first) winners.push(first);
-    if (second) runners.push(second);
-  });
+  // Playoff: 9º vs 24º, 10º vs 23º, ...
+  const playoffWinners: CupEntrant[] = [];
+  if (playoffSeeds.length >= 2) {
+    const ties: CupTie[] = [];
+    const half = Math.floor(playoffSeeds.length / 2);
+    for (let i = 0; i < half; i += 1) {
+      const home = playoffSeeds[i]!;
+      const away = playoffSeeds[playoffSeeds.length - 1 - i]!;
+      const result = simulateMatch(home.strength, away.strength, rng);
+      let winner = home;
+      let penalties = false;
+      if (result.homeGoals > result.awayGoals) winner = home;
+      else if (result.homeGoals < result.awayGoals) winner = away;
+      else {
+        penalties = true;
+        const hf = force(home.strength);
+        const af = force(away.strength);
+        winner = rng.next() < hf / (hf + af || 1) ? home : away;
+      }
+      ties.push({
+        homeId: home.clubId,
+        awayId: away.clubId,
+        homeGoals: result.homeGoals,
+        awayGoals: result.awayGoals,
+        winnerId: winner.clubId,
+        penalties,
+        bye: false,
+      });
+      playoffWinners.push(winner);
+    }
+    knockout.push({ name: 'Playoff', ties });
+  }
 
+  // Oitavas em diante: top 8 + vencedores do playoff (intercalados: seed vs playoff).
   const bracketTeams: CupEntrant[] = [];
-  for (let i = 0; i < winners.length; i += 1) {
-    bracketTeams.push(winners[i]!);
-    const runner = runners[(i + 1) % runners.length];
-    if (runner) bracketTeams.push(runner);
+  const maxLen = Math.max(top.length, playoffWinners.length);
+  for (let i = 0; i < maxLen; i += 1) {
+    if (top[i]) bracketTeams.push(top[i]!);
+    if (playoffWinners[i]) bracketTeams.push(playoffWinners[i]!);
   }
 
   const bracket = runBracket(bracketTeams, rng);
-  return { groups, knockout: bracket.rounds, championId: bracket.championId };
+  const group: CompetitionGroup = {
+    name: 'Fase de liga',
+    table: phase.table,
+    matches: phase.matches,
+  };
+  return {
+    groups: [group],
+    knockout: [...knockout, ...bracket.rounds],
+    championId: bracket.championId,
+  };
 }

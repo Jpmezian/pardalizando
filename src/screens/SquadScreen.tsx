@@ -15,6 +15,8 @@ export function SquadScreen(): JSX.Element {
   const game = useGameStore((state) => state.game);
   const goToLineup = useGameStore((state) => state.goToLineup);
   const backToStart = useGameStore((state) => state.backToStart);
+  const lastTransfers = useGameStore((state) => state.lastTransfers);
+  const clearTransfers = useGameStore((state) => state.clearTransfers);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
   const managedClub = game?.managedClubId ? game.clubs[game.managedClubId] : undefined;
@@ -81,6 +83,32 @@ export function SquadScreen(): JSX.Element {
             </BroadcastButton>
           </div>
         </div>
+
+        {lastTransfers && lastTransfers.length > 0 ? (
+          <div className="mt-3 border border-line bg-surface px-4 py-2">
+            <div className="flex items-center justify-between">
+              <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
+                Janela de transferências · {lastTransfers.length} negócios
+              </p>
+              <button
+                type="button"
+                onClick={clearTransfers}
+                className="font-sans text-xs uppercase tracking-broadcast text-ink-muted transition-colors duration-150 hover:text-ink"
+              >
+                Fechar
+              </button>
+            </div>
+            <ul className="mt-1.5 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-2">
+              {lastTransfers.slice(0, 8).map((transfer, index) => (
+                <li key={index} className="truncate font-sans text-sm">
+                  <span className="font-semibold text-ink">{transfer.player}</span>
+                  <span className="text-ink-faint"> {transfer.from}</span>
+                  <span className="text-accent"> → {transfer.to}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[32rem] border-collapse">

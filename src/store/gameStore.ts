@@ -31,14 +31,14 @@ import { simulateCompetition, type CompetitionResult } from '@/engine/competitio
 import { openPack as runOpenPack, sellValue } from '@/engine/market';
 import { spinRoulette as runSpin } from '@/engine/roulette';
 import { generateSeasonInjuries, type InjuryEvent } from '@/engine/injuries';
-import { progressSeason } from '@/engine/progression';
-import { BOARD_START, evaluateBoard } from '@/engine/board';
+import { progressSeason, type TransferNews } from '@/engine/progression';
+import { BOARD_START, cupConfidence, evaluateBoard } from '@/engine/board';
 import {
+  fullSeasonRewards,
   MIN_ROSTER,
   PACKS,
   ROSTER_LIMIT,
   ROULETTE_SPINS,
-  seasonReward,
   STARTING_TICKETS,
 } from '@/config/economy';
 
@@ -154,7 +154,7 @@ function nationalCupEntrants(game: GameState, lineup: Lineup): CupEntrant[] {
   }));
 }
 
-const TIER_SIZE = 32;
+const TIER_SIZE = 36;
 
 /**
  * Divide TODOS os clubes do continente em tiers de competição pela força:
@@ -220,6 +220,8 @@ interface GameStore {
   lastCups: CupsView | null;
   /** Lesões da última temporada simulada (transiente). */
   lastInjuries: InjuryEvent[] | null;
+  /** Transferências da IA na última virada de temporada (transiente). */
+  lastTransfers: TransferNews[] | null;
   /** Qual competição está aberta na tela de chaveamento. */
   viewedCompetition: ViewedCompetition | null;
   /** Clube aberto na tela de clube + de onde veio (pra voltar). */
@@ -253,6 +255,7 @@ interface GameStore {
   spinRoulette: (spinId: string) => void;
   clearSpin: () => void;
   advanceSeason: () => void;
+  clearTransfers: () => void;
   goToHistory: () => void;
   goToLeagueView: () => void;
   goToCompetition: (competition: ViewedCompetition) => void;
@@ -356,6 +359,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     lastSpin: null,
     lastCups: null,
     lastInjuries: null,
+    lastTransfers: null,
     viewedCompetition: null,
     viewedClubId: null,
     clubReturnScreen: 'squad',
@@ -727,6 +731,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       set({ lastSpin: null });
     },
 
+    clearTransfers() {
+      set({ lastTransfers: null });
+    },
+
     advanceSeason() {
       const { game, lastSeason, lastCups, lastInjuries } = get();
       if (!game?.managedClubId || !lastSeason) return;
@@ -761,24 +769,21 @@ export const useGameStore = create<GameStore>((set, get) => {
           remaining > 0 ? { ...player, injuredSeasons: remaining } : { ...player, injuredSeasons: undefined };
       }
 
-      const reward = seasonReward(position, lastSeason.table.length);
-      const continentalBudget = topContinental
-        ? 40_000_000
-        : midContinental
-          ? 22_000_000
-          : lowContinental
-            ? 12_000_000
-            : 0;
-      const cupBudget =
-        (nationalCupWon ? 20_000_000 : 0) + continentalBudget + (mundialWon ? 30_000_000 : 0);
-      const cupTickets = (topContinental ? 2 : midContinental ? 1 : 0) + (mundialWon ? 2 : 0);
+      const cupFlags = {
+        nationalCup: nationalCupWon,
+        topContinental,
+        midContinental,
+        lowContinental,
+        mundial: mundialWon,
+      };
+      const rewards = fullSeasonRewards(position, lastSeason.table.length, cupFlags);
       const managed = clubs[managedId];
       const rewardedClubs = managed
-        ? { ...clubs, [managedId]: { ...managed, budget: managed.budget + reward.budget + cupBudget } }
+        ? { ...clubs, [managedId]: { ...managed, budget: managed.budget + rewards.budget } }
         : clubs;
       const packs = {
         ...game.packs,
-        goldenTickets: game.packs.goldenTickets + reward.tickets + cupTickets,
+        goldenTickets: game.packs.goldenTickets + rewards.tickets,
       };
 
       const history: SeasonRecord[] = row
@@ -802,13 +807,14 @@ export const useGameStore = create<GameStore>((set, get) => {
           ]
         : game.history;
 
-      // Veredito da diretoria: cumpriu o objetivo? Atualiza a confiança; zerou = demitido.
+      // Veredito da diretoria: cumpriu o objetivo? Taças dão bônus. Confiança 0 = demitido.
       const managedReputation = game.clubs[managedId]?.reputation ?? 3;
       const verdict = evaluateBoard(
         managedReputation,
         lastSeason.table.length,
         position,
         game.boardConfidence ?? BOARD_START,
+        cupConfidence(cupFlags),
       );
 
       const baseGame: GameState = {
@@ -832,6 +838,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         lastSeason: null,
         lastCups: null,
         lastInjuries: null,
+        lastTransfers: progressed.transfers,
         screen: verdict.fired ? 'fired' : 'squad',
       });
       void persistGame(next);

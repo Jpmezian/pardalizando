@@ -10,15 +10,19 @@ function entrant(id: string, ovr: number): CupEntrant {
 }
 
 describe('simulateCompetition', () => {
-  const entrants = Array.from({ length: 32 }, (_, i) => entrant(`c${i}`, 70 + (i % 20)));
+  const entrants = Array.from({ length: 36 }, (_, i) => entrant(`c${i}`, 70 + (i % 20)));
 
-  it('forma 8 grupos de 4, todos jogando 3 partidas', () => {
+  it('fase de liga única (modelo suíço): 36 times, cada um joga 8 jogos', () => {
     const result = simulateCompetition(entrants, createRng(1));
-    expect(result.groups).toHaveLength(8);
-    for (const group of result.groups) {
-      expect(group.table).toHaveLength(4);
-      for (const row of group.table) expect(row.played).toBe(3);
-    }
+    expect(result.groups).toHaveLength(1);
+    const phase = result.groups[0]!;
+    expect(phase.table).toHaveLength(36);
+    for (const row of phase.table) expect(row.played).toBe(8);
+  });
+
+  it('tem playoff antes das oitavas (9º–24º)', () => {
+    const result = simulateCompetition(entrants, createRng(1));
+    expect(result.knockout[0]?.name).toBe('Playoff');
   });
 
   it('produz um campeão e termina o mata-mata na Final', () => {

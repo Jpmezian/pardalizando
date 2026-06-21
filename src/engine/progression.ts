@@ -112,10 +112,17 @@ function makeYouth(club: Club, subPos: SubPos, rng: Rng, id: string): Player {
 const RETIREMENT_AGE = 35;
 const MAX_REGENS_PER_CLUB = 3;
 
+export interface TransferNews {
+  player: string;
+  from: string;
+  to: string;
+}
+
 export interface AdvancedState {
   players: Record<string, Player>;
   clubs: Record<string, Club>;
   currentSeason: number;
+  transfers: TransferNews[];
 }
 
 /**
@@ -163,10 +170,11 @@ export function progressSeason(game: GameState, rng: Rng): AdvancedState {
 
   // Mercado da IA: alguns jogadores trocam de clube entre os times da IA (não o seu).
   // Compradores são sorteados com viés pra reputação (clube melhor leva a melhor).
+  const transfers: TransferNews[] = [];
   const aiClubs = Object.values(clubs).filter((club) => club.id !== game.managedClubId);
   if (aiClubs.length >= 2) {
-    const transfers = Math.min(10, Math.max(4, Math.round(aiClubs.length * 0.5)));
-    for (let t = 0; t < transfers; t += 1) {
+    const deals = Math.min(10, Math.max(4, Math.round(aiClubs.length * 0.5)));
+    for (let t = 0; t < deals; t += 1) {
       const sellers = aiClubs.filter((club) => club.squad.length > MIN_ROSTER);
       if (sellers.length === 0) break;
       const seller = sellers[rng.int(0, sellers.length - 1)]!;
@@ -186,8 +194,9 @@ export function progressSeason(game: GameState, rng: Rng): AdvancedState {
       seller.squad = seller.squad.filter((id) => id !== playerId);
       buyer.squad = [...buyer.squad, playerId];
       players[playerId] = { ...player, clubId: buyer.id };
+      transfers.push({ player: player.name, from: seller.name, to: buyer.name });
     }
   }
 
-  return { players, clubs, currentSeason: game.currentSeason + 1 };
+  return { players, clubs, currentSeason: game.currentSeason + 1, transfers };
 }
