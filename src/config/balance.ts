@@ -26,3 +26,10 @@ export const GK_DEF_WEIGHT = 1.6;
 
 /** Cada ponto de forma (-3..+3) altera o OVR efetivo em 2%. */
 export const FORM_PER_STEP = 0.02;
+
+/**
+ * Quanto o MELHOR jogador de cada setor puxa a força acima da média (0 = média pura).
+ * Faz o craque pesar de verdade: um monstro num setor vale mais que a média mandaria,
+ * então puxar/comprar um jogador foda muda o resultado (alinha a coleção com a simulação).
+ */
+export const STAR_BONUS = 0.45;

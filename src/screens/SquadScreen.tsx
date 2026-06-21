@@ -3,6 +3,8 @@ import type { Player } from '@/types';
 import { useGameStore } from '@/store/gameStore';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
 import { BroadcastButton } from '@/components/BroadcastButton';
+import { BoardBanner } from '@/components/BoardBanner';
+import { BOARD_START } from '@/engine/board';
 import { PlayerDetailModal } from '@/components/PlayerDetailModal';
 import { OvrBadge } from '@/components/OvrBadge';
 import { ReputationPips } from '@/components/ReputationPips';
@@ -65,6 +67,14 @@ export function SquadScreen(): JSX.Element {
             <p className="font-display text-6xl font-extrabold leading-none text-accent">{avgOvr}</p>
             <p className="font-sans text-sm text-ink-muted">{squad.length} jogadores</p>
           </div>
+        </div>
+
+        <div className="mt-5">
+          <BoardBanner
+            reputation={managedClub.reputation}
+            clubCount={Object.keys(game.clubs).length}
+            confidence={game.boardConfidence ?? BOARD_START}
+          />
         </div>
 
         <table className="mt-6 w-full border-collapse">

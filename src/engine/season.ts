@@ -1,7 +1,14 @@
 import type { GameState, LeagueId, Lineup, Player, PlayerSeasonStats, SubPos } from '@/types';
 import type { Rng } from './rng';
-import { effectiveOvr, pickBestXI, teamStrength, type FilledSlot, type SectorStrength } from './ratings';
-import { formationSubPositions } from './formations';
+import {
+  applySectorBias,
+  effectiveOvr,
+  pickBestXI,
+  teamStrength,
+  type FilledSlot,
+  type SectorStrength,
+} from './ratings';
+import { formationBias, formationSubPositions } from './formations';
 import { lineupFilledSlots } from './lineup';
 import { simulateMatch } from './match';
 
@@ -67,10 +74,11 @@ function isDefensive(subPos: SubPos): boolean {
   return subPos === 'GK' || subPos === 'CB' || subPos === 'LB' || subPos === 'RB';
 }
 
-function buildEntry(clubId: string, xi: FilledSlot[]): ClubEntry {
+function buildEntry(clubId: string, xi: FilledSlot[], bias?: SectorStrength): ClubEntry {
+  const base = teamStrength(xi);
   return {
     clubId,
-    strength: teamStrength(xi),
+    strength: bias ? applySectorBias(base, bias) : base,
     xi,
     scorerPicker: xi.map((slot) => ({
       playerId: slot.player.id,
@@ -232,7 +240,9 @@ export function simulateSeason(game: GameState, lineup: Lineup | null, rng: Rng)
   const stats = new Map<string, PlayerSeasonStats>();
 
   for (const clubId of clubIds) {
-    entries.set(clubId, buildEntry(clubId, buildXi(game, clubId, lineup)));
+    const bias =
+      lineup && clubId === game.managedClubId ? formationBias(lineup.formation) : undefined;
+    entries.set(clubId, buildEntry(clubId, buildXi(game, clubId, lineup), bias));
     table.set(clubId, emptyRow(clubId));
   }
 

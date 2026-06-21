@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Player } from '@/types';
 import { useGameStore } from '@/store/gameStore';
-import { FORMATIONS, FORMATION_IDS } from '@/engine/formations';
+import { FORMATIONS, FORMATION_IDS, FORMATION_STYLE } from '@/engine/formations';
 import { effectiveOvr, playerPositionFits } from '@/engine/ratings';
 import { positionPenalty } from '@/engine/positions';
 import { lineupStrength } from '@/engine/lineup';
@@ -253,6 +253,10 @@ export function LineupScreen(): JSX.Element {
                 );
               })}
             </div>
+            <p className="mt-2 font-sans text-xs text-ink-muted">
+              Estilo: <span className="text-ink">{FORMATION_STYLE[lineup.formation]}</span> — formação
+              ofensiva reforça o ataque mas abre a defesa, e vice-versa.
+            </p>
           </div>
 
           <div>

@@ -96,6 +96,12 @@ npm run data:build <csv>  # gera o dataset a partir de um CSV real (ver "Dados")
 - **Polimento** — capitão, idades, ano da temporada, potencial e melhor posição
   no detalhe do jogador, artilharia destacando seus jogadores, stats ordenáveis,
   ver elenco dos rivais, export/import de save.
+- **Profundidade de jogo** — o craque pesa de verdade na partida (`STAR_BONUS`
+  no `teamStrength`, não é mais média pura), **formações com trade-off**
+  ofensivo/defensivo (`FORMATION_BIAS`), e **diretoria** (`engine/board.ts`) com
+  objetivo de temporada pela reputação + barra de confiança: falhar demais
+  **demite** você (game over com recomeço). Tela do clube com o XI no campo e
+  hover em cada jogador.
 
 ## Dados (importar o CSV real)
 

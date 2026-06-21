@@ -5,6 +5,7 @@ import type { CupResult, CupTie } from '@/engine/cup';
 import type { CompetitionResult } from '@/engine/competition';
 import type { InjuryEvent } from '@/engine/injuries';
 import { computeSeasonAwards } from '@/engine/awards';
+import { BOARD_START, evaluateBoard } from '@/engine/board';
 import { useGameStore, type CupsView, type ViewedCompetition } from '@/store/gameStore';
 import { getClub } from '@/data/dataset';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
@@ -39,6 +40,12 @@ export function SeasonResultsScreen(): JSX.Element {
 
   const position = season.table.findIndex((row) => row.clubId === managedClub.id) + 1;
   const isChampion = position === 1;
+  const verdict = evaluateBoard(
+    managedClub.reputation,
+    season.table.length,
+    position,
+    game.boardConfidence ?? BOARD_START,
+  );
 
   const trophies: Array<{ kicker: string; title: string; subtitle: string }> = [];
   if (isChampion) {
@@ -80,6 +87,41 @@ export function SeasonResultsScreen(): JSX.Element {
             <span className="border border-accent bg-accent px-3 py-1 font-display text-sm font-bold uppercase tracking-wide text-accent-ink">
               Título da liga
             </span>
+          ) : null}
+        </div>
+
+        <div
+          className={`mt-5 border px-4 py-3 ${verdict.fired ? 'border-live' : verdict.met ? 'border-accent' : 'border-line'}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-sans text-xs uppercase tracking-broadcast text-ink-faint">
+                Objetivo: {verdict.objective.label}
+              </p>
+              <p
+                className={`mt-0.5 font-display text-xl font-bold uppercase ${verdict.met ? 'text-accent' : 'text-live'}`}
+              >
+                {verdict.met ? 'Cumprido' : 'Não cumprido'}
+                <span className="text-ink-muted"> · {position}º lugar</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-sans text-xs uppercase tracking-broadcast text-ink-faint">
+                Confiança da diretoria
+              </p>
+              <p className="font-display text-xl font-bold tabular-nums">
+                {verdict.confidenceBefore} → {verdict.confidenceAfter}{' '}
+                <span className={verdict.delta >= 0 ? 'text-accent' : 'text-live'}>
+                  ({verdict.delta >= 0 ? '+' : ''}
+                  {verdict.delta})
+                </span>
+              </p>
+            </div>
+          </div>
+          {verdict.fired ? (
+            <p className="mt-2 font-sans text-sm font-semibold text-live">
+              A diretoria perdeu a paciência. Ao avançar a temporada, você será demitido.
+            </p>
           ) : null}
         </div>
 

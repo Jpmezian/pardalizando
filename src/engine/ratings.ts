@@ -1,5 +1,5 @@
 import type { Player, SubPos } from '@/types';
-import { FORM_PER_STEP, GK_DEF_WEIGHT } from '@/config/balance';
+import { FORM_PER_STEP, GK_DEF_WEIGHT, STAR_BONUS } from '@/config/balance';
 import { positionPenalty, sectorsOf, type Sector } from './positions';
 
 export interface SectorStrength {
@@ -35,12 +35,16 @@ export interface FilledSlot {
   player: Player;
 }
 
-/** Força por setor (atk/mid/def) a partir dos 11 escalados. Goleiro pesa mais na defesa. */
+/**
+ * Força por setor (atk/mid/def) a partir dos 11 escalados. Goleiro pesa mais na defesa.
+ * A força do setor não é a média pura: o melhor jogador puxa acima dela (STAR_BONUS),
+ * então um craque pesa mais do que diluído na média.
+ */
 export function teamStrength(slots: FilledSlot[]): SectorStrength {
-  const acc: Record<Sector, { sum: number; weight: number }> = {
-    atk: { sum: 0, weight: 0 },
-    mid: { sum: 0, weight: 0 },
-    def: { sum: 0, weight: 0 },
+  const acc: Record<Sector, { sum: number; weight: number; best: number }> = {
+    atk: { sum: 0, weight: 0, best: 0 },
+    mid: { sum: 0, weight: 0, best: 0 },
+    def: { sum: 0, weight: 0, best: 0 },
   };
 
   for (const { subPos, player } of slots) {
@@ -50,13 +54,25 @@ export function teamStrength(slots: FilledSlot[]): SectorStrength {
       const w = sector === 'def' ? weight : 1;
       acc[sector].sum += eff * w;
       acc[sector].weight += w;
+      if (eff > acc[sector].best) acc[sector].best = eff;
     }
   }
 
+  const blend = (sector: { sum: number; weight: number; best: number }): number => {
+    if (sector.weight <= 0) return 0;
+    const mean = sector.sum / sector.weight;
+    return mean + STAR_BONUS * (sector.best - mean);
+  };
+
+  return { atk: blend(acc.atk), mid: blend(acc.mid), def: blend(acc.def) };
+}
+
+/** Aplica multiplicadores por setor (ex.: viés de formação) a uma força já calculada. */
+export function applySectorBias(strength: SectorStrength, bias: SectorStrength): SectorStrength {
   return {
-    atk: acc.atk.weight > 0 ? acc.atk.sum / acc.atk.weight : 0,
-    mid: acc.mid.weight > 0 ? acc.mid.sum / acc.mid.weight : 0,
-    def: acc.def.weight > 0 ? acc.def.sum / acc.def.weight : 0,
+    atk: strength.atk * bias.atk,
+    mid: strength.mid * bias.mid,
+    def: strength.def * bias.def,
   };
 }
 

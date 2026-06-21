@@ -80,3 +80,31 @@ export const FORMATION_IDS: FormationId[] = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2
 export function formationSubPositions(id: FormationId): SubPos[] {
   return FORMATIONS[id].map((slot) => slot.subPos);
 }
+
+/** Multiplicadores de força por setor: cada formação é um trade-off (mais ataque = menos defesa). */
+export interface FormationBias {
+  atk: number;
+  mid: number;
+  def: number;
+}
+
+export const FORMATION_BIAS: Record<FormationId, FormationBias> = {
+  '4-4-2': { atk: 1.0, mid: 1.0, def: 1.0 }, // equilíbrio
+  '4-3-3': { atk: 1.07, mid: 1.0, def: 0.93 }, // ofensiva pelos lados
+  '4-2-3-1': { atk: 1.05, mid: 1.03, def: 0.94 }, // ofensiva com meio armado
+  '3-5-2': { atk: 1.02, mid: 1.07, def: 0.93 }, // domina o meio, frágil atrás
+  '5-3-2': { atk: 0.92, mid: 0.99, def: 1.1 }, // defensiva / retranca
+};
+
+/** Rótulo curto do estilo de cada formação (pra UI). */
+export const FORMATION_STYLE: Record<FormationId, string> = {
+  '4-4-2': 'Equilibrada',
+  '4-3-3': 'Ofensiva',
+  '4-2-3-1': 'Ofensiva',
+  '3-5-2': 'Meio forte',
+  '5-3-2': 'Defensiva',
+};
+
+export function formationBias(id: FormationId): FormationBias {
+  return FORMATION_BIAS[id];
+}

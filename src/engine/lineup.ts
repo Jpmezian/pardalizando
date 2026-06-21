@@ -1,6 +1,13 @@
 import type { Club, FormationId, GameState, Lineup, LineupSlot, Player } from '@/types';
-import { formationSubPositions } from './formations';
-import { effectiveOvr, pickBestXI, teamStrength, type FilledSlot, type SectorStrength } from './ratings';
+import { formationBias, formationSubPositions } from './formations';
+import {
+  applySectorBias,
+  effectiveOvr,
+  pickBestXI,
+  teamStrength,
+  type FilledSlot,
+  type SectorStrength,
+} from './ratings';
 
 /** Helpers que ligam o GameState ao motor de ratings. Puros, sem React. */
 
@@ -94,7 +101,7 @@ export function lineupFilledSlots(game: GameState, lineup: Lineup): FilledSlot[]
 }
 
 export function lineupStrength(game: GameState, lineup: Lineup): SectorStrength {
-  return teamStrength(lineupFilledSlots(game, lineup));
+  return applySectorBias(teamStrength(lineupFilledSlots(game, lineup)), formationBias(lineup.formation));
 }
 
 /** Força do XI ideal de um clube controlado pela IA. */

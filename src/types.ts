@@ -140,4 +140,6 @@ export interface GameState {
   players: Record<string, Player>;
   history: SeasonRecord[];
   packs: PackInventory;
+  /** Confiança da diretoria (0–100). Zerou = demitido. Default 55 em saves antigos. */
+  boardConfidence?: number;
 }

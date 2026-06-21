@@ -20,7 +20,7 @@ import {
   sliceLeague,
 } from '@/data/dataset';
 import { LEAGUES, continentOf } from '@/data/loaders';
-import { hasSavedGame, loadGame, persistGame } from '@/save/saveStore';
+import { clearSave, hasSavedGame, loadGame, persistGame } from '@/save/saveStore';
 import { createRng, seedFromString } from '@/engine/rng';
 import { pickBestXI, teamStrength, type SectorStrength } from '@/engine/ratings';
 import { formationSubPositions } from '@/engine/formations';
@@ -33,6 +33,7 @@ import { openPack as runOpenPack, sellValue } from '@/engine/market';
 import { spinRoulette as runSpin } from '@/engine/roulette';
 import { generateSeasonInjuries, type InjuryEvent } from '@/engine/injuries';
 import { progressSeason } from '@/engine/progression';
+import { BOARD_START, evaluateBoard } from '@/engine/board';
 import {
   MIN_ROSTER,
   PACKS,
@@ -60,7 +61,8 @@ export type Screen =
   | 'history'
   | 'league-view'
   | 'competition'
-  | 'club';
+  | 'club'
+  | 'fired';
 
 export type ViewedCompetition = 'national' | 'champions' | 'libertadores';
 
@@ -121,6 +123,7 @@ function buildGameForClub(clubId: string): GameState {
     players,
     history: [],
     packs: { goldenTickets: STARTING_TICKETS, goldPity: 0 },
+    boardConfidence: BOARD_START,
   };
 }
 
@@ -214,6 +217,7 @@ interface GameStore {
   goToClub: (clubId: string) => void;
   backFromClub: () => void;
   backToStart: () => void;
+  restartCareer: () => void;
   backToLeagueSelect: () => void;
   backToSquad: () => void;
   backToLineup: () => void;
@@ -318,6 +322,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         ...loaded,
         packs: { goldenTickets: loaded.packs.goldenTickets, goldPity: loaded.packs.goldPity ?? 0 },
         lineup: loaded.lineup ? { ...loaded.lineup, bench: loaded.lineup.bench ?? [] } : null,
+        boardConfidence: loaded.boardConfidence ?? BOARD_START,
       };
       const managedClub = game.managedClubId ? game.clubs[game.managedClubId] : undefined;
       set({
@@ -409,6 +414,11 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     backToStart() {
       set({ screen: 'start' });
+    },
+
+    async restartCareer() {
+      await clearSave();
+      set({ game: null, selectedLeagueId: null, hasSave: false, screen: 'league-select' });
     },
 
     backToLeagueSelect() {
@@ -637,6 +647,15 @@ export const useGameStore = create<GameStore>((set, get) => {
           ]
         : game.history;
 
+      // Veredito da diretoria: cumpriu o objetivo? Atualiza a confiança; zerou = demitido.
+      const managedReputation = game.clubs[managedId]?.reputation ?? 3;
+      const verdict = evaluateBoard(
+        managedReputation,
+        lastSeason.table.length,
+        position,
+        game.boardConfidence ?? BOARD_START,
+      );
+
       const baseGame: GameState = {
         ...game,
         players,
@@ -645,6 +664,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         phase: 'lineup',
         packs,
         history,
+        boardConfidence: verdict.confidenceAfter,
       };
       // Preserva a escalação do usuário (só repõe quem saiu/lesionou); banco refeito.
       const newLineup = game.lineup
@@ -652,7 +672,13 @@ export const useGameStore = create<GameStore>((set, get) => {
         : buildLineup(baseGame, managedId, '4-3-3');
       const next: GameState = { ...baseGame, lineup: newLineup };
 
-      set({ game: next, lastSeason: null, lastCups: null, lastInjuries: null, screen: 'squad' });
+      set({
+        game: next,
+        lastSeason: null,
+        lastCups: null,
+        lastInjuries: null,
+        screen: verdict.fired ? 'fired' : 'squad',
+      });
       void persistGame(next);
     },
 

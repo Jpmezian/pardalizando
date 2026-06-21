@@ -14,6 +14,7 @@ import { HistoryScreen } from '@/screens/HistoryScreen';
 import { LeagueViewScreen } from '@/screens/LeagueViewScreen';
 import { CompetitionScreen } from '@/screens/CompetitionScreen';
 import { ClubDetailScreen } from '@/screens/ClubDetailScreen';
+import { FiredScreen } from '@/screens/FiredScreen';
 
 export function App(): JSX.Element {
   const screen = useGameStore((state) => state.screen);
@@ -50,6 +51,8 @@ export function App(): JSX.Element {
       return <CompetitionScreen />;
     case 'club':
       return <ClubDetailScreen />;
+    case 'fired':
+      return <FiredScreen />;
     case 'start':
       return <StartScreen />;
     default:
