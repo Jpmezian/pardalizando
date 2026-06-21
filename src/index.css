@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* --- Neutros de estúdio: charcoal frio (hue ~255), nunca preto puro --- */
+  --c-bg: oklch(0.16 0.012 255);
+  --c-surface: oklch(0.205 0.014 255);
+  --c-surface-raised: oklch(0.25 0.015 255);
+  --c-line: oklch(0.33 0.016 255);
+
+  /* --- Texto: foreground sub-100% pra não vibrar --- */
+  --c-text: oklch(0.96 0.006 250);
+  --c-text-muted: oklch(0.73 0.012 250);
+  --c-text-faint: oklch(0.56 0.012 250);
+
+  /* --- Acento: verde-gramado elétrico (contexto: é futebol) --- */
+  --c-accent: oklch(0.86 0.19 128);
+  --c-accent-strong: oklch(0.79 0.18 130);
+  --c-accent-ink: oklch(0.22 0.06 132);
+
+  /* --- Sinal: vermelho-broadcast, uso pontual --- */
+  --c-live: oklch(0.64 0.21 25);
+
+  /* --- Sistema de z-index declarado --- */
+  --z-base: 0;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 600;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Algarismos tabulares: placares e tabelas alinham coluna a coluna. */
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+/* Indicador de "sistema online" — pisca discreto, linguagem de broadcast. */
+@keyframes signal-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.signal-dot {
+  animation: signal-pulse 1.8s ease-in-out infinite;
+}
+
+/* Revelação de pacote: o pico emocional do jogo (spec §9.2). */
+@keyframes pack-pop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pack-pop {
+  animation: pack-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Tremor do pacote fechado antes de abrir. */
+@keyframes pack-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-3px) rotate(-2deg);
+  }
+  50% {
+    transform: translateX(3px) rotate(2deg);
+  }
+  75% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+}
+
+.pack-shake {
+  animation: pack-shake 0.45s ease-in-out infinite;
+}
+
+/* Blob orgânico do loading de simulação — fluido e em loop. */
+@keyframes blob-morph {
+  0%,
+  100% {
+    border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+    transform: rotate(0deg) scale(1);
+  }
+  33% {
+    border-radius: 67% 33% 47% 53% / 37% 62% 38% 63%;
+    transform: rotate(120deg) scale(1.08);
+  }
+  66% {
+    border-radius: 39% 61% 55% 45% / 61% 38% 62% 39%;
+    transform: rotate(240deg) scale(0.94);
+  }
+}
+
+.blob {
+  animation: blob-morph 3.6s ease-in-out infinite;
+}
+
+/* Pôster de troféu/prêmio: entrada + brilho varrendo (o "posterzinho"). */
+@keyframes poster-rise {
+  0% {
+    transform: translateY(14px) scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.poster-rise {
+  animation: poster-rise 440ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes poster-shine {
+  0% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(330%) skewX(-18deg);
+  }
+}
+
+.poster-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.16), transparent);
+  animation: poster-shine 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-dot,
+  .pack-pop,
+  .pack-shake,
+  .blob,
+  .poster-rise {
+    animation: none;
+  }
+  .poster-shine::after {
+    animation: none;
+  }
+}

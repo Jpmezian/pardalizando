@@ -1,0 +1,27 @@
+{
+  "source": "fc-csv",
+  "dataVersion": "fc-csv-2026-06-21",
+  "generatedAt": "2026-06-21T09:09:19.964Z",
+  "totalClubs": 238,
+  "totalPlayers": 6446,
+  "clubsPerLeague": {
+    "premier-league": 20,
+    "la-liga": 20,
+    "serie-a": 20,
+    "bundesliga": 18,
+    "ligue-1": 18,
+    "eredivisie": 18,
+    "primeira-liga": 18,
+    "super-lig": 18,
+    "allsvenskan": 16,
+    "super-league-gr": 4,
+    "brasileirao": 14,
+    "liga-argentina": 30,
+    "primera-uruguay": 5,
+    "primera-chile": 6,
+    "primera-venezuela": 4,
+    "primera-colombia": 4,
+    "primera-paraguay": 5
+  },
+  "note": "Derivado de um CSV público; ovr é número próprio do jogo, sem branding oficial."
+}

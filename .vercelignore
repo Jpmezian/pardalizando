@@ -1,0 +1,8 @@
+node_modules
+dist
+*.csv
+.claude
+.vite
+coverage
+boot-prompt-claude-code.txt
+spec-mvp-football-manager.md

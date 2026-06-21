@@ -1,0 +1,36 @@
+import { describe, it, expect } from 'vitest';
+import type { SectorStrength } from './ratings';
+import type { CupEntrant } from './cup';
+import { createRng } from './rng';
+import { simulateCompetition } from './competition';
+
+function entrant(id: string, ovr: number): CupEntrant {
+  const strength: SectorStrength = { atk: ovr, mid: ovr, def: ovr };
+  return { clubId: id, strength };
+}
+
+describe('simulateCompetition', () => {
+  const entrants = Array.from({ length: 32 }, (_, i) => entrant(`c${i}`, 70 + (i % 20)));
+
+  it('forma 8 grupos de 4, todos jogando 3 partidas', () => {
+    const result = simulateCompetition(entrants, createRng(1));
+    expect(result.groups).toHaveLength(8);
+    for (const group of result.groups) {
+      expect(group.table).toHaveLength(4);
+      for (const row of group.table) expect(row.played).toBe(3);
+    }
+  });
+
+  it('produz um campeão e termina o mata-mata na Final', () => {
+    const result = simulateCompetition(entrants, createRng(2));
+    expect(result.championId).not.toBeNull();
+    expect(entrants.some((e) => e.clubId === result.championId)).toBe(true);
+    expect(result.knockout[result.knockout.length - 1]?.name).toBe('Final');
+  });
+
+  it('é determinística: mesma seed → mesmo campeão', () => {
+    const a = simulateCompetition(entrants, createRng(9));
+    const b = simulateCompetition(entrants, createRng(9));
+    expect(a.championId).toBe(b.championId);
+  });
+});
