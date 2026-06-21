@@ -12,6 +12,7 @@ const TITLES: Record<string, string> = {
   conference: 'Conference League',
   libertadores: 'Libertadores',
   sudamericana: 'Sudamericana',
+  mundial: 'Mundial de Clubes',
 };
 
 export function CompetitionScreen(): JSX.Element {
@@ -31,9 +32,11 @@ export function CompetitionScreen(): JSX.Element {
     );
   }
 
-  const groups = viewed === 'national' ? [] : (cups[viewed] as CompetitionResult).groups;
-  const knockout =
-    viewed === 'national' ? (cups.national as CupResult).rounds : (cups[viewed] as CompetitionResult).knockout;
+  const isKnockoutOnly = viewed === 'national' || viewed === 'mundial';
+  const groups = isKnockoutOnly ? [] : (cups[viewed] as CompetitionResult).groups;
+  const knockout = isKnockoutOnly
+    ? (cups[viewed] as CupResult).rounds
+    : (cups[viewed] as CompetitionResult).knockout;
   const championId = cups[viewed].championId;
 
   const name = (id: string): string => game.clubs[id]?.name ?? getClub(id)?.name ?? id;

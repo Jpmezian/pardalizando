@@ -69,7 +69,8 @@ export type ViewedCompetition =
   | 'europa'
   | 'conference'
   | 'libertadores'
-  | 'sudamericana';
+  | 'sudamericana'
+  | 'mundial';
 
 const DEFAULT_FORMATION: FormationId = '4-3-3';
 
@@ -96,6 +97,8 @@ export interface CupsView {
   conference: CompetitionResult;
   libertadores: CompetitionResult;
   sudamericana: CompetitionResult;
+  /** Mundial de Clubes: campeões continentais se enfrentam pelo título mundial. */
+  mundial: CupResult;
 }
 
 /** Resultado de uma partida pronto pra exibição (transiente, não vai pro save). */
@@ -301,6 +304,27 @@ export const useGameStore = create<GameStore>((set, get) => {
     const libertadores = simulateCompetition(saTiers[0] ?? [], cupRng);
     const sudamericana = simulateCompetition(saTiers[1] ?? [], cupRng);
 
+    // Mundial de Clubes: os campeões continentais se enfrentam pelo título mundial.
+    const out = new Set(game.transferredOut ?? []);
+    const myLineup = game.lineup;
+    const mundialEntrants: CupEntrant[] = [
+      champions,
+      libertadores,
+      europa,
+      conference,
+      sudamericana,
+    ]
+      .map((result) => result.championId)
+      .filter((id): id is string => id !== null)
+      .map((id) => {
+        if (id === game.managedClubId) {
+          return { clubId: id, strength: lineupStrength(game, myLineup) };
+        }
+        const club = getClub(id);
+        return { clubId: id, strength: club ? datasetStrength(club, out) : { atk: 0, mid: 0, def: 0 } };
+      });
+    const mundial = simulateKnockout(mundialEntrants, cupRng);
+
     const injuryRng = createRng(seedFromString(`${game.seed}:injuries:${game.currentSeason}:${nonce}`));
     const managed = game.clubs[game.managedClubId];
     const managedSquad = managed
@@ -314,7 +338,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     set({
       game: next,
       lastSeason: outcome,
-      lastCups: { national, champions, europa, conference, libertadores, sudamericana },
+      lastCups: { national, champions, europa, conference, libertadores, sudamericana, mundial },
       lastInjuries: injuries,
       screen: targetScreen,
       seasonSimCount: nonce + 1,
@@ -717,6 +741,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       const midContinental =
         lastCups?.europa.championId === managedId || lastCups?.sudamericana.championId === managedId;
       const lowContinental = lastCups?.conference.championId === managedId;
+      const mundialWon = lastCups?.mundial.championId === managedId;
 
       const rng = createRng(seedFromString(`${game.seed}:progress:${game.currentSeason}`));
       const progressed = progressSeason(game, rng);
@@ -744,8 +769,9 @@ export const useGameStore = create<GameStore>((set, get) => {
           : lowContinental
             ? 12_000_000
             : 0;
-      const cupBudget = (nationalCupWon ? 20_000_000 : 0) + continentalBudget;
-      const cupTickets = topContinental ? 2 : midContinental ? 1 : 0;
+      const cupBudget =
+        (nationalCupWon ? 20_000_000 : 0) + continentalBudget + (mundialWon ? 30_000_000 : 0);
+      const cupTickets = (topContinental ? 2 : midContinental ? 1 : 0) + (mundialWon ? 2 : 0);
       const managed = clubs[managedId];
       const rewardedClubs = managed
         ? { ...clubs, [managedId]: { ...managed, budget: managed.budget + reward.budget + cupBudget } }

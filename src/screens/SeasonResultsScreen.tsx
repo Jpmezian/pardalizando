@@ -52,6 +52,9 @@ export function SeasonResultsScreen(): JSX.Element {
   );
 
   const trophies: Array<{ kicker: string; title: string; subtitle: string }> = [];
+  if (cups?.mundial.championId === managedClub.id) {
+    trophies.push({ kicker: 'Mundial de Clubes', title: 'Campeão do mundo', subtitle: 'O topo do planeta' });
+  }
   if (isChampion) {
     trophies.push({
       kicker: 'Campeão da liga',
@@ -108,8 +111,8 @@ export function SeasonResultsScreen(): JSX.Element {
         rightLabel={`Temporada ${season.season}`}
       />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-4 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-3">
           <div>
             <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
               {managedClub.name} · {seasonYearLabel(season.season)}
@@ -658,6 +661,10 @@ function CupsTab({ game, cups, managedId }: CupsTabProps): JSX.Element {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
+        <CupView game={game} cup={cups.mundial} title="Mundial de Clubes" managedId={managedId} />
+        {viewButton('Ver chaveamento', 'mundial')}
+      </div>
       <div>
         <CupView game={game} cup={cups.national} title="Copa Nacional" managedId={managedId} />
         {viewButton('Ver chaveamento', 'national')}

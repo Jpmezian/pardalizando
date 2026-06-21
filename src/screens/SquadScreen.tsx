@@ -43,16 +43,16 @@ export function SquadScreen(): JSX.Element {
       />
       <MainNav active="squad" />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-4 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-3">
           <div>
             <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
               Seu clube
             </p>
-            <h1 className="mt-1 font-display text-5xl font-extrabold uppercase leading-none tracking-tight lg:text-6xl">
+            <h1 className="font-display text-3xl font-extrabold uppercase leading-none tracking-tight lg:text-4xl">
               {managedClub.name}
             </h1>
-            <div className="mt-3 flex items-center gap-4">
+            <div className="mt-1.5 flex items-center gap-4">
               <ReputationPips value={managedClub.reputation} />
               <span className="font-sans text-sm text-ink-muted">
                 Orçamento {formatMoney(managedClub.budget)}
@@ -61,28 +61,28 @@ export function SquadScreen(): JSX.Element {
           </div>
           <div className="text-right">
             <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
-              Overall médio
+              Overall médio · {squad.length} jog.
             </p>
-            <p className="font-display text-6xl font-extrabold leading-none text-accent">{avgOvr}</p>
-            <p className="font-sans text-sm text-ink-muted">{squad.length} jogadores</p>
+            <p className="font-display text-4xl font-extrabold leading-none text-accent">{avgOvr}</p>
           </div>
         </div>
 
-        <div className="mt-5">
-          <BoardBanner
-            reputation={managedClub.reputation}
-            clubCount={Object.keys(game.clubs).length}
-            confidence={game.boardConfidence ?? BOARD_START}
-          />
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <BoardBanner
+              reputation={managedClub.reputation}
+              clubCount={Object.keys(game.clubs).length}
+              confidence={game.boardConfidence ?? BOARD_START}
+            />
+          </div>
+          <div className="sm:w-56">
+            <BroadcastButton variant="primary" onClick={() => goToLineup()}>
+              Escalar &amp; simular
+            </BroadcastButton>
+          </div>
         </div>
 
-        <div className="mt-5 max-w-md">
-          <BroadcastButton variant="primary" onClick={() => goToLineup()}>
-            Escalar &amp; simular
-          </BroadcastButton>
-        </div>
-
-        <div className="mt-7 overflow-x-auto">
+        <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[32rem] border-collapse">
           <thead>
             <tr className="border-b border-line text-left font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
@@ -109,12 +109,12 @@ export function SquadScreen(): JSX.Element {
                 }}
                 className="cursor-pointer border-b border-line transition-colors duration-150 hover:bg-surface-raised focus-visible:bg-surface-raised"
               >
-                <td className="py-2 pr-3">
+                <td className="py-1 pr-3">
                   <span className="inline-block border border-line px-1.5 py-0.5 font-display text-xs font-bold tracking-wide text-ink-muted">
                     {player.subPos}
                   </span>
                 </td>
-                <td className="py-2 pr-3 font-sans">
+                <td className="py-1 pr-3 font-sans">
                   {player.name}
                   {player.id === captainId ? (
                     <span className="ml-2 border border-accent px-1 font-display text-[10px] font-bold text-accent">
@@ -127,13 +127,13 @@ export function SquadScreen(): JSX.Element {
                     </span>
                   ) : null}
                 </td>
-                <td className="py-2 pr-3 text-right font-sans tabular-nums text-ink-muted">
+                <td className="py-1 pr-3 text-right font-sans tabular-nums text-ink-muted">
                   {player.age}
                 </td>
-                <td className="py-2 pr-3 text-right font-sans tabular-nums text-ink-muted">
+                <td className="py-1 pr-3 text-right font-sans tabular-nums text-ink-muted">
                   {formatMoney(player.value)}
                 </td>
-                <td className="py-2 text-right">
+                <td className="py-1 text-right">
                   <div className="flex justify-end">
                     <OvrBadge ovr={player.ovr} />
                   </div>

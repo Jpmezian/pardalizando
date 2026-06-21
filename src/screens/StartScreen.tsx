@@ -46,7 +46,7 @@ export function StartScreen(): JSX.Element {
     <div className="flex min-h-screen flex-col bg-bg text-ink">
       <BroadcastTopBar rightLabel="Temporada 25/26" />
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-10 px-5 py-12 lg:grid-cols-[1.5fr_1fr] lg:gap-0 lg:px-8">
+      <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-8 px-5 py-6 lg:grid-cols-[1.5fr_1fr] lg:gap-0 lg:px-8">
         <section className="lg:pr-12">
           <p className="mb-6 flex items-center gap-3 font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
             <span className="signal-dot h-2.5 w-2.5 bg-accent" aria-hidden="true" />

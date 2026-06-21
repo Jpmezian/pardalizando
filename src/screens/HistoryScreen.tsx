@@ -15,11 +15,11 @@ export function HistoryScreen(): JSX.Element {
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel="Histórico" />
       <MainNav active="history" />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-6 lg:px-8">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-4 lg:px-8">
         <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
           {managedClub?.name ?? ''}
         </p>
-        <h1 className="mt-1 font-display text-4xl font-extrabold uppercase tracking-tight lg:text-5xl">
+        <h1 className="font-display text-3xl font-extrabold uppercase tracking-tight lg:text-4xl">
           Histórico
         </h1>
 

@@ -45,7 +45,7 @@ export function MarketScreen(): JSX.Element {
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel="Mercado" />
       <MainNav active="market" />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-6 lg:px-8">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-4 lg:px-8">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-line pb-5">
           <Stat label="Orçamento" value={formatMoney(managedClub.budget)} />
           <Stat label="Fichas douradas" value={String(game.packs.goldenTickets)} />

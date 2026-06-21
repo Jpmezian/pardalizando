@@ -24,9 +24,10 @@ const OUT_DIR = resolve(HERE, '../src/data/generated');
 const MAX_SQUAD = 30; // teto de jogadores por clube (controla tamanho do JSON)
 const MIN_SQUAD = 11; // clube com menos que isto é descartado (elenco incompleto)
 
-/** Ajustes manuais de OVR/POT por id de jogador — sobrevivem à regeneração do dataset. */
+/** Ajustes manuais (ovr/pot/subPos) por id de jogador — sobrevivem à regeneração do dataset. */
 const PLAYER_OVERRIDES = {
   'p-247827': { ovr: 90, pot: 95 }, // M. Olise (Bayern)
+  'p-192985': { subPos: 'AM' }, // K. De Bruyne — joga de CAM
 };
 
 /** @type {{ id: string, name: string, code: string }[]} */
@@ -436,13 +437,15 @@ function processCsv(csvPath) {
     const override = PLAYER_OVERRIDES[id];
     const ovrFinal = clamp(override?.ovr ?? ovr, 40, 99);
     const potFinal = clamp(Math.max(override?.pot ?? pot, ovrFinal), 40, 99);
+    const subPosFinal = override?.subPos ?? subPos;
+    const posFinal = POS_OF_SUBPOS[subPosFinal] ?? pos;
     clubMap.get(clubId).players.push({
       id,
       name,
       clubId,
       ...(nationality ? { nationality } : {}),
-      pos,
-      subPos,
+      pos: posFinal,
+      subPos: subPosFinal,
       ovr: ovrFinal,
       pot: potFinal,
       age: clamp(age, 15, 45),

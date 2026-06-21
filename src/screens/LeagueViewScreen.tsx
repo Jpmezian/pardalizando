@@ -46,10 +46,10 @@ export function LeagueViewScreen(): JSX.Element {
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel="Liga" />
       <MainNav active="league-view" />
 
-      <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-6 px-5 py-6 lg:grid-cols-[1fr_1.2fr] lg:px-8">
+      <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[1fr_1.2fr] lg:px-8">
         <section>
-          <h1 className="font-display text-4xl font-extrabold uppercase tracking-tight">Clubes</h1>
-          <ul className="mt-4 border border-line">
+          <h1 className="font-display text-3xl font-extrabold uppercase tracking-tight">Clubes</h1>
+          <ul className="mt-3 border border-line">
             {ranked.map(({ club, avg }) => {
               const isActive = club.id === activeClubId;
               const isManaged = club.id === game.managedClubId;
@@ -58,7 +58,7 @@ export function LeagueViewScreen(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => setSelectedClubId(club.id)}
-                    className={`flex w-full items-center justify-between gap-3 border-b border-line px-3 py-2 text-left transition-colors duration-150 last:border-b-0 ${
+                    className={`flex w-full items-center justify-between gap-3 border-b border-line px-3 py-1.5 text-left transition-colors duration-150 last:border-b-0 ${
                       isActive ? 'bg-surface-raised' : 'hover:bg-surface'
                     }`}
                   >
