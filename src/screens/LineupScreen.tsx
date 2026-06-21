@@ -51,13 +51,33 @@ export function LineupScreen(): JSX.Element {
           .filter((player) => !player.injuredSeasons)
           .sort((a, b) => effectiveOvr(b, selectedSubPos) - effectiveOvr(a, selectedSubPos));
 
-  const benchPlayers = lineup.bench
-    .map((playerId) => game.players[playerId])
-    .filter((player): player is Player => player !== undefined);
+  // Reservas = TODO o elenco fora do XI (não só o banco salvo) — assim um jogador
+  // recém-ganho no mercado sempre aparece e dá pra escalar.
+  const xiIds = new Set(
+    lineup.slots.map((slot) => slot.playerId).filter((id): id is string => id !== null),
+  );
+  const benchPlayers = squad
+    .filter((player) => !xiIds.has(player.id) && !player.injuredSeasons)
+    .sort((a, b) => b.ovr - a.ovr);
 
   const handleAssign = (playerId: string): void => {
     if (selectedSlot === null) return;
     assignPlayerToSlot(selectedSlot, playerId);
+    setSelectedSlot(null);
+  };
+
+  // Toque numa reserva → entra na melhor posição dela no XI (troca quem estava lá).
+  const addToBestSlot = (player: Player): void => {
+    let bestIndex = 0;
+    let bestEff = -Infinity;
+    lineup.slots.forEach((slot, index) => {
+      const eff = effectiveOvr(player, slot.subPos);
+      if (eff > bestEff) {
+        bestEff = eff;
+        bestIndex = index;
+      }
+    });
+    assignPlayerToSlot(bestIndex, player.id);
     setSelectedSlot(null);
   };
 
@@ -116,24 +136,27 @@ export function LineupScreen(): JSX.Element {
 
           <div className="mt-4">
             <p className="mb-2 font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
-              Banco ({benchPlayers.length})
+              Reservas ({benchPlayers.length}) · toque pra escalar
             </p>
             {benchPlayers.length === 0 ? (
               <p className="font-sans text-sm text-ink-faint">Sem reservas disponíveis.</p>
             ) : (
               <ul className="flex flex-wrap gap-2">
                 {benchPlayers.map((player) => (
-                  <li
-                    key={player.id}
-                    className="flex items-center gap-2 border border-line px-2 py-1"
-                  >
-                    <span className="font-display text-xs font-bold text-ink-faint">
-                      {player.subPos}
-                    </span>
-                    <span className="font-sans text-sm">{player.name}</span>
-                    <span className="font-display text-sm font-bold tabular-nums text-ink-muted">
-                      {player.ovr}
-                    </span>
+                  <li key={player.id}>
+                    <button
+                      type="button"
+                      onClick={() => addToBestSlot(player)}
+                      className="flex items-center gap-2 border border-line px-2 py-1 transition-colors duration-150 hover:border-accent hover:bg-surface-raised"
+                    >
+                      <span className="font-display text-xs font-bold text-ink-faint">
+                        {player.subPos}
+                      </span>
+                      <span className="font-sans text-sm">{player.name}</span>
+                      <span className="font-display text-sm font-bold tabular-nums text-ink-muted">
+                        {player.ovr}
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
