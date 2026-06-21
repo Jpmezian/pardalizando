@@ -11,7 +11,6 @@ import type {
   SeasonRecord,
 } from '@/types';
 import {
-  clubAverageOvr,
   DATA_VERSION,
   getAllPlayers,
   getClub,
@@ -64,7 +63,13 @@ export type Screen =
   | 'club'
   | 'fired';
 
-export type ViewedCompetition = 'national' | 'champions' | 'libertadores';
+export type ViewedCompetition =
+  | 'national'
+  | 'champions'
+  | 'europa'
+  | 'conference'
+  | 'libertadores'
+  | 'sudamericana';
 
 const DEFAULT_FORMATION: FormationId = '4-3-3';
 
@@ -87,7 +92,10 @@ export interface RouletteView {
 export interface CupsView {
   national: CupResult;
   champions: CompetitionResult;
+  europa: CompetitionResult;
+  conference: CompetitionResult;
   libertadores: CompetitionResult;
+  sudamericana: CompetitionResult;
 }
 
 /** Resultado de uma partida pronto pra exibição (transiente, não vai pro save). */
@@ -140,46 +148,56 @@ function nationalCupEntrants(game: GameState, lineup: Lineup): CupEntrant[] {
   }));
 }
 
-/** Participantes de uma copa continental: top clubes das ligas do continente + o seu clube. */
-function continentalField(game: GameState, lineup: Lineup, continent: Continent): CupEntrant[] {
+const TIER_SIZE = 32;
+
+/**
+ * Divide TODOS os clubes do continente em tiers de competição pela força:
+ *   Europa  → [Champions, Europa League, Conference League]
+ *   América → [Libertadores, Sudamericana]
+ * O seu clube cai no tier que a força dele alcança (Galatasaray pode jogar a
+ * Europa/Conference em vez da Champions), e é garantido em algum tier.
+ */
+function continentalTiers(
+  game: GameState,
+  lineup: Lineup,
+  continent: Continent,
+  tierCount: number,
+): CupEntrant[][] {
   const managedId = game.managedClubId;
   const managedClub = managedId ? game.clubs[managedId] : undefined;
   const managedContinent = managedClub ? continentOf(managedClub.leagueId) : undefined;
 
-  const field: Club[] = [];
+  const clubs: Club[] = [];
   for (const league of LEAGUES) {
     if (league.continent !== continent) continue;
-    const top = getClubsByLeague(league.id)
-      .map((club) => ({ club, avg: clubAverageOvr(club) }))
-      .sort((a, b) => b.avg - a.avg)
-      .slice(0, 4)
-      .map((entry) => entry.club);
-    field.push(...top);
+    clubs.push(...getClubsByLeague(league.id));
   }
-  if (managedClub && managedContinent === continent && !field.some((club) => club.id === managedClub.id)) {
-    field.push(managedClub);
+  if (managedClub && managedContinent === continent && !clubs.some((c) => c.id === managedClub.id)) {
+    clubs.push(managedClub);
   }
 
-  const entrants = field.map((club) => ({
+  const entrants: CupEntrant[] = clubs.map((club) => ({
     clubId: club.id,
     strength: club.id === managedId ? lineupStrength(game, lineup) : datasetStrength(club),
   }));
-
-  // A competição joga só com um campo de potências de 4 (até 32). Recorta pelos mais fortes,
-  // MAS garante o seu clube — ele se classificou pela liga, não pode ser cortado em silêncio.
   const force = (s: SectorStrength): number => s.atk + s.mid + s.def;
   const ranked = entrants.sort((a, b) => force(b.strength) - force(a.strength));
-  const groupCount = Math.min(8, Math.floor(ranked.length / 4));
-  const fieldSize = groupCount >= 2 ? groupCount * 4 : Math.min(16, ranked.length);
 
-  let kept = ranked.slice(0, fieldSize);
-  const managedInField =
-    managedClub && managedContinent === continent ? managedClub.id : null;
-  if (managedInField && !kept.some((entry) => entry.clubId === managedInField)) {
-    const managedEntry = ranked.find((entry) => entry.clubId === managedInField);
-    if (managedEntry) kept = [...ranked.slice(0, fieldSize - 1), managedEntry];
+  // Garante o clube do usuário dentro de algum tier (não pode ficar de fora).
+  if (managedId && managedContinent === continent) {
+    const idx = ranked.findIndex((e) => e.clubId === managedId);
+    const maxIdx = tierCount * TIER_SIZE - 1;
+    if (idx > maxIdx) {
+      const [me] = ranked.splice(idx, 1);
+      if (me) ranked.splice(maxIdx, 0, me);
+    }
   }
-  return kept;
+
+  const tiers: CupEntrant[][] = [];
+  for (let t = 0; t < tierCount; t += 1) {
+    tiers.push(ranked.slice(t * TIER_SIZE, (t + 1) * TIER_SIZE));
+  }
+  return tiers;
 }
 
 interface GameStore {
@@ -271,11 +289,13 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     const cupRng = createRng(seedFromString(`${game.seed}:cups:${game.currentSeason}:${nonce}`));
     const national = simulateKnockout(nationalCupEntrants(game, game.lineup), cupRng);
-    const champions = simulateCompetition(continentalField(game, game.lineup, 'europe'), cupRng);
-    const libertadores = simulateCompetition(
-      continentalField(game, game.lineup, 'south-america'),
-      cupRng,
-    );
+    const euroTiers = continentalTiers(game, game.lineup, 'europe', 3);
+    const champions = simulateCompetition(euroTiers[0] ?? [], cupRng);
+    const europa = simulateCompetition(euroTiers[1] ?? [], cupRng);
+    const conference = simulateCompetition(euroTiers[2] ?? [], cupRng);
+    const saTiers = continentalTiers(game, game.lineup, 'south-america', 2);
+    const libertadores = simulateCompetition(saTiers[0] ?? [], cupRng);
+    const sudamericana = simulateCompetition(saTiers[1] ?? [], cupRng);
 
     const injuryRng = createRng(seedFromString(`${game.seed}:injuries:${game.currentSeason}:${nonce}`));
     const managed = game.clubs[game.managedClubId];
@@ -290,7 +310,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     set({
       game: next,
       lastSeason: outcome,
-      lastCups: { national, champions, libertadores },
+      lastCups: { national, champions, europa, conference, libertadores, sudamericana },
       lastInjuries: injuries,
       screen: targetScreen,
       seasonSimCount: nonce + 1,
@@ -360,6 +380,39 @@ export const useGameStore = create<GameStore>((set, get) => {
         boardConfidence: loaded.boardConfidence ?? BOARD_START,
       };
       const managedClub = game.managedClubId ? game.clubs[game.managedClubId] : undefined;
+
+      // Remove jogadores repetidos por NOME no elenco (bug antigo de pacote/roleta — 2 Xhaka).
+      if (game.managedClubId && managedClub) {
+        const seen = new Set<string>();
+        const dedupedSquad: string[] = [];
+        for (const id of managedClub.squad) {
+          const player = game.players[id];
+          if (!player) continue;
+          if (seen.has(player.name)) {
+            delete game.players[id];
+            continue;
+          }
+          seen.add(player.name);
+          dedupedSquad.push(id);
+        }
+        if (dedupedSquad.length !== managedClub.squad.length) {
+          game.clubs = {
+            ...game.clubs,
+            [game.managedClubId]: { ...managedClub, squad: dedupedSquad },
+          };
+          if (game.lineup) {
+            const keep = new Set(dedupedSquad);
+            game.lineup = {
+              ...game.lineup,
+              slots: game.lineup.slots.map((slot) =>
+                slot.playerId && keep.has(slot.playerId) ? slot : { ...slot, playerId: null },
+              ),
+              bench: game.lineup.bench.filter((id) => keep.has(id)),
+            };
+          }
+        }
+      }
+
       set({
         game,
         selectedLeagueId: managedClub?.leagueId ?? null,
@@ -487,7 +540,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (config.currency === 'budget' && managed.budget < config.cost) return;
       if (config.currency === 'tickets' && game.packs.goldenTickets < config.cost) return;
 
-      const pool = getAllPlayers().filter((player) => game.players[player.id] === undefined);
+      const ownedNames = new Set(Object.values(game.players).map((player) => player.name));
+      const pool = getAllPlayers().filter(
+        (player) => game.players[player.id] === undefined && !ownedNames.has(player.name),
+      );
       const rng = createRng(seedFromString(`${game.seed}:pack:${rarity}:${pullCount}`));
       const { result, newPityCount } = runOpenPack(pool, rarity, rng, game.packs.goldPity);
       if (!result) return;
@@ -575,7 +631,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (config.currency === 'budget' && managed.budget < config.cost) return;
       if (config.currency === 'tickets' && game.packs.goldenTickets < config.cost) return;
 
-      const pool = getAllPlayers().filter((player) => game.players[player.id] === undefined);
+      const ownedNames = new Set(Object.values(game.players).map((player) => player.name));
+      const pool = getAllPlayers().filter(
+        (player) => game.players[player.id] === undefined && !ownedNames.has(player.name),
+      );
       const rng = createRng(seedFromString(`${game.seed}:spin:${spinId}:${pullCount}`));
       const result = runSpin(pool, config, rng, game.packs.goldPity);
       if (!result) return;
@@ -629,7 +688,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       const nationalCupWon = lastCups?.national.championId === managedId;
       const championsWon = lastCups?.champions.championId === managedId;
       const libertadoresWon = lastCups?.libertadores.championId === managedId;
-      const continentalWon = championsWon || libertadoresWon;
+      const topContinental = championsWon || libertadoresWon;
+      const midContinental =
+        lastCups?.europa.championId === managedId || lastCups?.sudamericana.championId === managedId;
+      const lowContinental = lastCups?.conference.championId === managedId;
 
       const rng = createRng(seedFromString(`${game.seed}:progress:${game.currentSeason}`));
       const progressed = progressSeason(game, rng);
@@ -650,8 +712,15 @@ export const useGameStore = create<GameStore>((set, get) => {
       }
 
       const reward = seasonReward(position, lastSeason.table.length);
-      const cupBudget = (nationalCupWon ? 20_000_000 : 0) + (continentalWon ? 40_000_000 : 0);
-      const cupTickets = continentalWon ? 2 : 0;
+      const continentalBudget = topContinental
+        ? 40_000_000
+        : midContinental
+          ? 22_000_000
+          : lowContinental
+            ? 12_000_000
+            : 0;
+      const cupBudget = (nationalCupWon ? 20_000_000 : 0) + continentalBudget;
+      const cupTickets = topContinental ? 2 : midContinental ? 1 : 0;
       const managed = clubs[managedId];
       const rewardedClubs = managed
         ? { ...clubs, [managedId]: { ...managed, budget: managed.budget + reward.budget + cupBudget } }

@@ -8,7 +8,10 @@ import { ClubLink } from '@/components/ClubLink';
 const TITLES: Record<string, string> = {
   national: 'Copa Nacional',
   champions: 'Champions',
+  europa: 'Europa League',
+  conference: 'Conference League',
   libertadores: 'Libertadores',
+  sudamericana: 'Sudamericana',
 };
 
 export function CompetitionScreen(): JSX.Element {

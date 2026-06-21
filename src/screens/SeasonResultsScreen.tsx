@@ -8,10 +8,12 @@ import { computeSeasonAwards } from '@/engine/awards';
 import { BOARD_START, evaluateBoard } from '@/engine/board';
 import { useGameStore, type CupsView, type ViewedCompetition } from '@/store/gameStore';
 import { getAllPlayers, getClub } from '@/data/dataset';
+import { continentOf } from '@/data/loaders';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
 import { BroadcastButton } from '@/components/BroadcastButton';
 import { ClubLink } from '@/components/ClubLink';
 import { Poster } from '@/components/Poster';
+import { TripleCrownOverlay } from '@/components/TripleCrownOverlay';
 import { findCaptainId, seasonYearLabel } from '@/lib/format';
 
 type ResultsTab = 'table' | 'scorers' | 'squad' | 'cups' | 'prizes' | 'injuries';
@@ -26,6 +28,7 @@ export function SeasonResultsScreen(): JSX.Element {
   const backToLineup = useGameStore((state) => state.backToLineup);
   const [tab, setTab] = useState<ResultsTab>('table');
   const [confirmAdvance, setConfirmAdvance] = useState(false);
+  const [trebleSeen, setTrebleSeen] = useState(false);
 
   const managedClub = game?.managedClubId ? game.clubs[game.managedClubId] : undefined;
   if (!game || !managedClub || !season) {
@@ -62,12 +65,43 @@ export function SeasonResultsScreen(): JSX.Element {
   if (cups?.champions.championId === managedClub.id) {
     trophies.push({ kicker: 'Champions', title: 'Conquistada', subtitle: 'Elite da Europa' });
   }
+  if (cups?.europa.championId === managedClub.id) {
+    trophies.push({ kicker: 'Europa League', title: 'Conquistada', subtitle: '2º nível europeu' });
+  }
+  if (cups?.conference.championId === managedClub.id) {
+    trophies.push({ kicker: 'Conference League', title: 'Conquistada', subtitle: '3º nível europeu' });
+  }
   if (cups?.libertadores.championId === managedClub.id) {
     trophies.push({ kicker: 'Libertadores', title: 'Conquistada', subtitle: 'Glória sul-americana' });
   }
+  if (cups?.sudamericana.championId === managedClub.id) {
+    trophies.push({ kicker: 'Sudamericana', title: 'Conquistada', subtitle: 'Copa sul-americana' });
+  }
+
+  const continentalLabel =
+    cups?.champions.championId === managedClub.id
+      ? 'Champions'
+      : cups?.libertadores.championId === managedClub.id
+        ? 'Libertadores'
+        : cups?.europa.championId === managedClub.id
+          ? 'Europa League'
+          : cups?.conference.championId === managedClub.id
+            ? 'Conference League'
+            : cups?.sudamericana.championId === managedClub.id
+              ? 'Sudamericana'
+              : null;
+  const tripleCrown =
+    isChampion && cups?.national.championId === managedClub.id && continentalLabel !== null;
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
+      {tripleCrown && continentalLabel && !trebleSeen ? (
+        <TripleCrownOverlay
+          clubName={managedClub.name}
+          continentalLabel={continentalLabel}
+          onClose={() => setTrebleSeen(true)}
+        />
+      ) : null}
       <BroadcastTopBar
         onBack={backToLineup}
         backLabel="Escalação"
@@ -604,25 +638,36 @@ function CupsTab({ game, cups, managedId }: CupsTabProps): JSX.Element {
     </button>
   );
 
+  const continent = continentOf(game.clubs[managedId]?.leagueId ?? 'premier-league');
+  const continental: Array<{ key: ViewedCompetition; title: string; result: CompetitionResult }> =
+    continent === 'south-america'
+      ? [
+          { key: 'libertadores', title: 'Libertadores', result: cups.libertadores },
+          { key: 'sudamericana', title: 'Sudamericana', result: cups.sudamericana },
+        ]
+      : [
+          { key: 'champions', title: 'Champions', result: cups.champions },
+          { key: 'europa', title: 'Europa League', result: cups.europa },
+          { key: 'conference', title: 'Conference League', result: cups.conference },
+        ];
+
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div>
         <CupView game={game} cup={cups.national} title="Copa Nacional" managedId={managedId} />
         {viewButton('Ver chaveamento', 'national')}
       </div>
-      <div>
-        <CompetitionCard game={game} result={cups.champions} title="Champions" managedId={managedId} />
-        {viewButton('Ver grupos & chaveamento', 'champions')}
-      </div>
-      <div>
-        <CompetitionCard
-          game={game}
-          result={cups.libertadores}
-          title="Libertadores"
-          managedId={managedId}
-        />
-        {viewButton('Ver grupos & chaveamento', 'libertadores')}
-      </div>
+      {continental.map((comp) => (
+        <div key={comp.key}>
+          <CompetitionCard
+            game={game}
+            result={comp.result}
+            title={comp.title}
+            managedId={managedId}
+          />
+          {viewButton('Ver grupos & chaveamento', comp.key)}
+        </div>
+      ))}
     </div>
   );
 }
