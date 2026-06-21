@@ -16,13 +16,16 @@ const HYPE_TEXTS = [
 export function SimulatingScreen(): JSX.Element {
   const finishSimulating = useGameStore((state) => state.finishSimulating);
   const [textIndex, setTextIndex] = useState(0);
+  const [fill, setFill] = useState(false);
 
   useEffect(() => {
+    const start = setTimeout(() => setFill(true), 30);
     const done = setTimeout(() => finishSimulating(), SIMULATION_MS);
     const cycle = setInterval(() => {
       setTextIndex((index) => (index + 1) % HYPE_TEXTS.length);
     }, TEXT_INTERVAL_MS);
     return () => {
+      clearTimeout(start);
       clearTimeout(done);
       clearInterval(cycle);
     };
@@ -48,6 +51,22 @@ export function SimulatingScreen(): JSX.Element {
         <p className="mt-2 font-sans text-xs uppercase tracking-broadcast text-ink-faint">
           Simulando a temporada
         </p>
+
+        <div
+          className="mt-6 h-1 w-full max-w-xs overflow-hidden bg-surface-raised"
+          role="progressbar"
+          aria-label="Progresso da simulação"
+        >
+          <div
+            className="h-full bg-accent"
+            style={{
+              width: fill ? '100%' : '0%',
+              transitionProperty: 'width',
+              transitionDuration: `${SIMULATION_MS}ms`,
+              transitionTimingFunction: 'linear',
+            }}
+          />
+        </div>
 
         <AdSlot
           format="Patrocínio da transmissão"

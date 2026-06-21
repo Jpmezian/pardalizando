@@ -26,11 +26,7 @@ export function ClubSelectScreen(): JSX.Element {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
-      <BroadcastTopBar
-        onBack={backToLeagueSelect}
-        backLabel="Ligas"
-        rightLabel="Novo jogo · 2 / 2"
-      />
+      <BroadcastTopBar onBack={backToLeagueSelect} backLabel="Ligas" />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10 lg:px-8">
         <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-accent">

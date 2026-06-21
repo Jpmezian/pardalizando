@@ -274,13 +274,18 @@ export function ReplayScreen(): JSX.Element {
                     ? 'border-live text-live'
                     : 'border-line text-ink-muted';
                 return (
-                  <span key={entry.round} className="group relative inline-block">
+                  <span
+                    key={entry.round}
+                    tabIndex={0}
+                    aria-label={`Rodada ${entry.round}: ${myGoals}–${oppGoals}`}
+                    className="group relative inline-block"
+                  >
                     <span
                       className={`block cursor-default border px-2 py-1 font-display text-sm font-bold tabular-nums ${cls}`}
                     >
                       {myGoals}–{oppGoals}
                     </span>
-                    <span className="invisible absolute bottom-full left-1/2 z-[400] mb-1 w-60 -translate-x-1/2 border border-line bg-surface-raised p-3 text-left opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+                    <span className="invisible absolute bottom-full left-1/2 z-[400] mb-1 w-60 -translate-x-1/2 border border-line bg-surface-raised p-3 text-left opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 group-focus:visible group-focus:opacity-100">
                       <span className="flex items-center gap-1 font-display text-sm font-bold uppercase">
                         {home ? 'vs' : '@'}
                         <ClubLink

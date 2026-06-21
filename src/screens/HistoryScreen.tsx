@@ -29,7 +29,8 @@ export function HistoryScreen(): JSX.Element {
             a história do clube.
           </p>
         ) : (
-          <table className="mt-6 w-full border-collapse">
+          <div className="mt-6 overflow-x-auto">
+          <table className="w-full min-w-[34rem] border-collapse">
             <thead>
               <tr className="border-b border-line text-left font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
                 <th className="py-2 pr-3 font-semibold">Temporada</th>
@@ -78,6 +79,7 @@ export function HistoryScreen(): JSX.Element {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </main>
     </div>

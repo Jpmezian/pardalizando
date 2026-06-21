@@ -25,6 +25,7 @@ export function SeasonResultsScreen(): JSX.Element {
   const advanceSeason = useGameStore((state) => state.advanceSeason);
   const backToLineup = useGameStore((state) => state.backToLineup);
   const [tab, setTab] = useState<ResultsTab>('table');
+  const [confirmAdvance, setConfirmAdvance] = useState(false);
 
   const managedClub = game?.managedClubId ? game.clubs[game.managedClubId] : undefined;
   if (!game || !managedClub || !season) {
@@ -168,14 +169,31 @@ export function SeasonResultsScreen(): JSX.Element {
           {tab === 'injuries' ? <InjuriesTab injuries={injuries} /> : null}
         </div>
 
-        <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-          <BroadcastButton variant="primary" onClick={advanceSeason}>
-            Avançar para a próxima temporada
-          </BroadcastButton>
-          <BroadcastButton variant="ghost" onClick={goToMarket}>
-            Ir ao mercado
-          </BroadcastButton>
-        </div>
+        {confirmAdvance ? (
+          <div className="mt-8 border border-line bg-surface p-4">
+            <p className="font-sans text-sm text-ink-muted">
+              Avançar fecha a temporada de vez — aplica progressão, lesões e mercado da IA, e{' '}
+              <span className="text-ink">não dá pra voltar atrás</span>. Confirmar?
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <BroadcastButton variant="primary" onClick={advanceSeason}>
+                Confirmar avanço
+              </BroadcastButton>
+              <BroadcastButton variant="ghost" onClick={() => setConfirmAdvance(false)}>
+                Cancelar
+              </BroadcastButton>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-8 flex flex-col gap-2 sm:flex-row">
+            <BroadcastButton variant="primary" onClick={() => setConfirmAdvance(true)}>
+              Avançar para a próxima temporada
+            </BroadcastButton>
+            <BroadcastButton variant="ghost" onClick={goToMarket}>
+              Ir ao mercado
+            </BroadcastButton>
+          </div>
+        )}
         <p className="mt-4 text-center font-sans text-xs text-ink-faint">
           Ao avançar: todos envelhecem, jovens evoluem, veteranos declinam, e você recebe a receita
           da temporada.
@@ -212,7 +230,8 @@ interface SeasonContentProps {
 
 function LeagueTable({ game, season }: SeasonContentProps): JSX.Element {
   return (
-    <table className="w-full border-collapse">
+    <div className="overflow-x-auto">
+    <table className="w-full min-w-[34rem] border-collapse">
       <thead>
         <tr className="border-b border-line text-left font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
           <th className="py-2 pr-2 text-right font-semibold">#</th>
@@ -257,6 +276,7 @@ function LeagueTable({ game, season }: SeasonContentProps): JSX.Element {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -353,7 +373,8 @@ function SquadStats({ game, club }: SquadStatsProps): JSX.Element {
   const captainId = findCaptainId(club.squad, game.players);
 
   return (
-    <table className="w-full border-collapse">
+    <div className="overflow-x-auto">
+    <table className="w-full min-w-[34rem] border-collapse">
       <thead>
         <tr className="border-b border-line text-left font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
           <th className="py-2 pr-3 font-semibold">Jogador</th>
@@ -391,6 +412,7 @@ function SquadStats({ game, club }: SquadStatsProps): JSX.Element {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 

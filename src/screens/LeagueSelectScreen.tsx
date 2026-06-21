@@ -10,7 +10,7 @@ export function LeagueSelectScreen(): JSX.Element {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
-      <BroadcastTopBar onBack={backToStart} backLabel="Início" rightLabel="Novo jogo · 1 / 2" />
+      <BroadcastTopBar onBack={backToStart} backLabel="Início" />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10 lg:px-8">
         <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-accent">

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { Player } from '@/types';
 import { playerPositionFits } from '@/engine/ratings';
 import { fitColorClass, fitLabel, formatMoney } from '@/lib/format';
@@ -13,12 +14,27 @@ export function PlayerDetailModal({ player, onClose }: PlayerDetailModalProps): 
   const fits = playerPositionFits(player);
   const best = fits[0];
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Detalhes de ${player.name}`}
+      onClick={onClose}
       className="fixed inset-0 z-[400] flex items-center justify-center px-5"
       style={{ backgroundColor: 'oklch(0.16 0.012 255 / 0.92)' }}
     >
-      <div className="w-full max-w-md border border-line bg-surface">
+      <div
+        onClick={(event) => event.stopPropagation()}
+        className="w-full max-w-md border border-line bg-surface"
+      >
         <div className="flex items-start justify-between border-b border-line px-5 py-4">
           <div>
             <h2 className="font-display text-3xl font-extrabold uppercase leading-none tracking-tight">

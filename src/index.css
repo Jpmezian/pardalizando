@@ -11,8 +11,8 @@
 
   /* --- Texto: foreground sub-100% pra não vibrar --- */
   --c-text: oklch(0.96 0.006 250);
-  --c-text-muted: oklch(0.73 0.012 250);
-  --c-text-faint: oklch(0.56 0.012 250);
+  --c-text-muted: oklch(0.74 0.012 250);
+  --c-text-faint: oklch(0.63 0.012 250);
 
   /* --- Acento: verde-gramado elétrico (contexto: é futebol) --- */
   --c-accent: oklch(0.86 0.19 128);
@@ -32,6 +32,12 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Foco visível só pra navegação por teclado — anel no acento (acessibilidade). */
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }
 
 html,

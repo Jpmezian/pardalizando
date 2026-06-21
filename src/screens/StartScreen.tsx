@@ -44,7 +44,7 @@ export function StartScreen(): JSX.Element {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
-      <BroadcastTopBar rightLabel="v0.1 · M1" />
+      <BroadcastTopBar rightLabel="Temporada 25/26" />
 
       <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-10 px-5 py-12 lg:grid-cols-[1.5fr_1fr] lg:gap-0 lg:px-8">
         <section className="lg:pr-12">
@@ -130,7 +130,7 @@ function LeagueRail(): JSX.Element {
     <footer className="border-t border-line px-5 py-4 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3">
         <span className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
-          Ligas no MVP
+          Ligas disponíveis
         </span>
         <ul className="flex flex-wrap gap-2">
           {LEAGUES.map((league) => (

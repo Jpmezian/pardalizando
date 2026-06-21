@@ -82,7 +82,8 @@ export function SquadScreen(): JSX.Element {
           </BroadcastButton>
         </div>
 
-        <table className="mt-7 w-full border-collapse">
+        <div className="mt-7 overflow-x-auto">
+        <table className="w-full min-w-[32rem] border-collapse">
           <thead>
             <tr className="border-b border-line text-left font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
               <th className="py-2 pr-3 font-semibold">Pos</th>
@@ -96,8 +97,17 @@ export function SquadScreen(): JSX.Element {
             {squad.map((player) => (
               <tr
                 key={player.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Ver detalhes de ${player.name}`}
                 onClick={() => setSelectedPlayer(player)}
-                className="cursor-pointer border-b border-line transition-colors duration-150 hover:bg-surface-raised"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedPlayer(player);
+                  }
+                }}
+                className="cursor-pointer border-b border-line transition-colors duration-150 hover:bg-surface-raised focus-visible:bg-surface-raised"
               >
                 <td className="py-2 pr-3">
                   <span className="inline-block border border-line px-1.5 py-0.5 font-display text-xs font-bold tracking-wide text-ink-muted">
@@ -132,7 +142,7 @@ export function SquadScreen(): JSX.Element {
             ))}
           </tbody>
         </table>
-
+        </div>
       </main>
 
       {selectedPlayer ? (

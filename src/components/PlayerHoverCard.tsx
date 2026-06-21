@@ -22,10 +22,14 @@ export function PlayerHoverCard({
   const anchor = placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2';
 
   return (
-    <span className={`group relative inline-block cursor-help ${className}`}>
+    <span
+      tabIndex={0}
+      aria-label={`Detalhes de ${player.name}`}
+      className={`group relative inline-block cursor-help ${className}`}
+    >
       {children}
       <span
-        className={`invisible absolute left-1/2 z-[400] w-56 -translate-x-1/2 ${anchor} border border-line bg-surface-raised p-3 text-left opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100`}
+        className={`invisible absolute left-1/2 z-[400] w-56 -translate-x-1/2 ${anchor} border border-line bg-surface-raised p-3 text-left opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 group-focus:visible group-focus:opacity-100`}
       >
         <span className="flex items-start justify-between gap-2">
           <span className="min-w-0">
