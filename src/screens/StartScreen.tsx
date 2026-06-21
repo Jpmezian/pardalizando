@@ -4,6 +4,7 @@ import { LEAGUES } from '@/data/loaders';
 import { exportSaveToFile, importSaveFromFile } from '@/save/transfer';
 import { BroadcastButton } from '@/components/BroadcastButton';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
+import { AdSlot } from '@/components/AdSlot';
 
 export function StartScreen(): JSX.Element {
   const hasSave = useGameStore((state) => state.hasSave);
@@ -62,6 +63,8 @@ export function StartScreen(): JSX.Element {
             Erga um clube à glória ou construa um <span className="text-ink">reinado</span> com um
             gigante. Liga, copa e continental — conquiste do seu jeito, uma temporada de cada vez.
           </p>
+
+          <AdSlot format="Patrocínio" size="468×60" className="mt-9 h-20 w-full max-w-md" />
         </section>
 
         <aside className="border-t border-line bg-surface lg:border-l lg:border-t-0">
@@ -106,8 +109,16 @@ export function StartScreen(): JSX.Element {
               />
             </div>
           </div>
+
+          <div className="border-t border-line p-4">
+            <AdSlot format="Box" size="300×250" className="h-44 w-full" />
+          </div>
         </aside>
       </main>
+
+      <div className="mx-auto w-full max-w-6xl px-5 pb-8 lg:px-8">
+        <AdSlot format="Leaderboard" size="728×90" className="h-24 w-full" />
+      </div>
 
       <LeagueRail />
     </div>
