@@ -6,6 +6,7 @@ import { effectiveOvr, playerPositionFits } from '@/engine/ratings';
 import { positionPenalty } from '@/engine/positions';
 import { lineupStrength } from '@/engine/lineup';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
+import { MainNav } from '@/components/MainNav';
 import { BroadcastButton } from '@/components/BroadcastButton';
 import { fitColorClass, fitLabel } from '@/lib/format';
 
@@ -71,6 +72,7 @@ export function LineupScreen(): JSX.Element {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel={managedClub.name} />
+      <MainNav active="lineup" />
 
       <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-6 px-5 py-6 lg:grid-cols-[1fr_340px] lg:px-8">
         <section>

@@ -3,6 +3,7 @@ import type { Player } from '@/types';
 import { useGameStore } from '@/store/gameStore';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
 import { BroadcastButton } from '@/components/BroadcastButton';
+import { MainNav } from '@/components/MainNav';
 import { BoardBanner } from '@/components/BoardBanner';
 import { BOARD_START } from '@/engine/board';
 import { PlayerDetailModal } from '@/components/PlayerDetailModal';
@@ -13,9 +14,6 @@ import { findCaptainId, formatMoney, POSITION_ORDER, seasonYearLabel } from '@/l
 export function SquadScreen(): JSX.Element {
   const game = useGameStore((state) => state.game);
   const goToLineup = useGameStore((state) => state.goToLineup);
-  const goToMarket = useGameStore((state) => state.goToMarket);
-  const goToHistory = useGameStore((state) => state.goToHistory);
-  const goToLeagueView = useGameStore((state) => state.goToLeagueView);
   const backToStart = useGameStore((state) => state.backToStart);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
@@ -43,6 +41,7 @@ export function SquadScreen(): JSX.Element {
         backLabel="Início"
         rightLabel={`Temporada ${game.currentSeason} · ${seasonYearLabel(game.currentSeason)}`}
       />
+      <MainNav active="squad" />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
@@ -77,7 +76,13 @@ export function SquadScreen(): JSX.Element {
           />
         </div>
 
-        <table className="mt-6 w-full border-collapse">
+        <div className="mt-5 max-w-md">
+          <BroadcastButton variant="primary" onClick={() => goToLineup()}>
+            Escalar &amp; simular
+          </BroadcastButton>
+        </div>
+
+        <table className="mt-7 w-full border-collapse">
           <thead>
             <tr className="border-b border-line text-left font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
               <th className="py-2 pr-3 font-semibold">Pos</th>
@@ -128,20 +133,6 @@ export function SquadScreen(): JSX.Element {
           </tbody>
         </table>
 
-        <div className="mt-8 grid max-w-3xl grid-cols-1 gap-2 sm:grid-cols-2">
-          <BroadcastButton variant="primary" onClick={() => goToLineup()}>
-            Escalar time
-          </BroadcastButton>
-          <BroadcastButton variant="ghost" onClick={() => goToMarket()}>
-            Mercado
-          </BroadcastButton>
-          <BroadcastButton variant="ghost" onClick={() => goToLeagueView()}>
-            Liga
-          </BroadcastButton>
-          <BroadcastButton variant="ghost" onClick={() => goToHistory()}>
-            Histórico
-          </BroadcastButton>
-        </div>
       </main>
 
       {selectedPlayer ? (

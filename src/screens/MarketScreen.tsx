@@ -4,6 +4,7 @@ import { useGameStore } from '@/store/gameStore';
 import { MIN_ROSTER, PACKS, RARITY_ORDER, ROSTER_LIMIT, type PackConfig } from '@/config/economy';
 import { sellValue } from '@/engine/market';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
+import { MainNav } from '@/components/MainNav';
 import { BroadcastButton } from '@/components/BroadcastButton';
 import { OvrBadge } from '@/components/OvrBadge';
 import { RoulettePanel, RouletteReveal } from '@/components/RoulettePanel';
@@ -42,6 +43,7 @@ export function MarketScreen(): JSX.Element {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel="Mercado" />
+      <MainNav active="market" />
 
       <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-6 lg:px-8">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-line pb-5">

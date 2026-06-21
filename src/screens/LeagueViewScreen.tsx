@@ -5,6 +5,7 @@ import { pickBestXI, teamStrength, type SectorStrength } from '@/engine/ratings'
 import { formationSubPositions } from '@/engine/formations';
 import { POSITION_ORDER } from '@/lib/format';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
+import { MainNav } from '@/components/MainNav';
 import { OvrBadge } from '@/components/OvrBadge';
 
 function clubPlayers(game: GameState, club: Club): Player[] {
@@ -43,6 +44,7 @@ export function LeagueViewScreen(): JSX.Element {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel="Liga" />
+      <MainNav active="league-view" />
 
       <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-6 px-5 py-6 lg:grid-cols-[1fr_1.2fr] lg:px-8">
         <section>

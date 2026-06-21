@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store/gameStore';
 import { BroadcastTopBar } from '@/components/BroadcastTopBar';
+import { MainNav } from '@/components/MainNav';
 import { seasonYearLabel } from '@/lib/format';
 
 export function HistoryScreen(): JSX.Element {
@@ -12,6 +13,7 @@ export function HistoryScreen(): JSX.Element {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink">
       <BroadcastTopBar onBack={backToSquad} backLabel="Elenco" rightLabel="Histórico" />
+      <MainNav active="history" />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-6 lg:px-8">
         <p className="font-sans text-xs font-semibold uppercase tracking-broadcast text-ink-faint">
