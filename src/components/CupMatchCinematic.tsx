@@ -133,19 +133,22 @@ interface ShotGeom {
 }
 
 function shotGeometry(step: Step): ShotGeom {
+  // Gol estreito ocupa x35–65 (traves), boca em y~22–40. Bola sobe do batedor pro gol.
   const shot = step.shot;
   const side = shot && shot.minute % 2 === 0 ? 'left' : 'right';
-  if (step.kind === 'buildup') return { bx: 50, by: 75, bs: 1.1, kx: 50, ballMs: 650, flash: false };
-  if (step.kind === 'windup') return { bx: 50, by: 55, bs: 0.85, kx: 50, ballMs: 520, flash: false };
+  if (step.kind === 'buildup') return { bx: 50, by: 72, bs: 1.05, kx: 50, ballMs: 650, flash: false };
+  if (step.kind === 'windup') return { bx: 50, by: 53, bs: 0.8, kx: 50, ballMs: 520, flash: false };
   // reveal
   if (shot?.outcome === 'goal') {
-    return { bx: side === 'left' ? 37 : 63, by: 22, bs: 0.55, kx: side === 'left' ? 58 : 42, ballMs: 360, flash: true };
+    // entra junto da trave (dentro de 35–65); goleiro pula pro lado errado
+    return { bx: side === 'left' ? 40 : 60, by: 26, bs: 0.42, kx: side === 'left' ? 57 : 43, ballMs: 360, flash: true };
   }
   if (shot?.outcome === 'save') {
-    return { bx: side === 'left' ? 43 : 57, by: 33, bs: 0.7, kx: side === 'left' ? 43 : 57, ballMs: 320, flash: false };
+    // goleiro vai na bola e defende
+    return { bx: side === 'left' ? 46 : 54, by: 31, bs: 0.58, kx: side === 'left' ? 46 : 54, ballMs: 320, flash: false };
   }
-  // miss
-  return { bx: side === 'left' ? 16 : 84, by: 27, bs: 0.5, kx: 50, ballMs: 340, flash: false };
+  // pra fora: passa do lado de fora da trave
+  return { bx: side === 'left' ? 28 : 72, by: 24, bs: 0.4, kx: 50, ballMs: 340, flash: false };
 }
 
 /** Câmera de frente pro gol — gol + goleiro + bola voando, gramado em perspectiva. */
@@ -200,24 +203,26 @@ function GoalCam({
         }}
       />
 
-      {/* Grande área em perspectiva (gol no topo; área mais larga que o gol, arco na frente) */}
+      {/* Grande área em perspectiva (gol no topo, bem estreito; área ~5x mais larga, arco na frente) */}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
-        <g fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeLinejoin="round">
-          {/* Grande área (18 jardas): linha de fundo no gol, abrindo até a linha da frente */}
-          <path d="M22 42 L9 80 H91 L78 42" />
-          {/* Meia-lua: arco na linha da frente, estufando pra fora (em direção ao batedor) */}
-          <path d="M40 80 Q 50 91 60 80" />
+        <g fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" strokeLinejoin="round">
+          {/* Grande área (18 jardas): lados abrindo do gol até a linha da frente */}
+          <path d="M25 40 L6 82 L94 82 L75 40" />
+          {/* linha de fundo da grande área (nível do gol), discreta */}
+          <path d="M25 40 H75" stroke="rgba(255,255,255,0.28)" />
           {/* Pequena área (5 metros) */}
-          <path d="M34 42 L30 55 H70 L66 42" />
+          <path d="M33 40 L29 54 L71 54 L67 40" />
+          {/* Meia-lua na linha da frente, estufando pra fora (rumo ao batedor) */}
+          <path d="M41 82 Q 50 92 59 82" />
           {/* Marca do pênalti */}
-          <circle cx="50" cy="61" r="1" fill="rgba(255,255,255,0.75)" stroke="none" />
+          <circle cx="50" cy="64" r="1" fill="rgba(255,255,255,0.7)" stroke="none" />
         </g>
       </svg>
 
-      {/* Gol */}
+      {/* Gol (estreito, proporção ~3:1) */}
       <div
-        className="absolute left-1/2 top-[16%] z-20 -translate-x-1/2"
-        style={{ width: '46%', height: '26%' }}
+        className="absolute left-1/2 top-[22%] z-20 -translate-x-1/2"
+        style={{ width: '30%', height: '18%' }}
       >
         {/* rede */}
         <div
@@ -228,33 +233,33 @@ function GoalCam({
           }}
         />
         {/* travessão + postes */}
-        <div className="absolute inset-x-0 top-0 h-[8%] bg-white/90" />
-        <div className="absolute inset-y-0 left-0 w-[2.5%] bg-white/90" />
-        <div className="absolute inset-y-0 right-0 w-[2.5%] bg-white/90" />
+        <div className="absolute inset-x-0 top-0 h-[9%] bg-white/90" />
+        <div className="absolute inset-y-0 left-0 w-[3.5%] bg-white/90" />
+        <div className="absolute inset-y-0 right-0 w-[3.5%] bg-white/90" />
         {/* flash do gol (verde) */}
         {g.flash ? (
           <div className="cup-flash absolute inset-0" style={{ backgroundColor: GOAL_COLOR }} aria-hidden="true" />
         ) : null}
       </div>
 
-      {/* Goleiro */}
+      {/* Goleiro (na boca do gol estreito) */}
       <div
-        className="absolute top-[28%] z-20 -translate-x-1/2"
+        className="absolute top-[29%] z-20 -translate-x-1/2"
         style={{
           left: `${g.kx}%`,
-          width: '4.5%',
-          height: '13%',
+          width: '3.4%',
+          height: '11%',
           transitionProperty: 'left',
           transitionDuration: '300ms',
           transitionTimingFunction: 'cubic-bezier(0.3,0,0.2,1)',
         }}
       >
         <div
-          className="absolute bottom-0 h-[72%] w-full rounded-t-md"
+          className="absolute bottom-0 h-[70%] w-full rounded-t-md"
           style={{ backgroundColor: KEEPER_COLOR }}
         />
         <div
-          className="absolute left-1/2 top-0 h-[36%] w-[60%] -translate-x-1/2 rounded-full"
+          className="absolute left-1/2 top-0 h-[34%] w-[64%] -translate-x-1/2 rounded-full"
           style={{ backgroundColor: KEEPER_COLOR }}
         />
       </div>
