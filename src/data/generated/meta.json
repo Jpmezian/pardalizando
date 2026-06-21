@@ -1,9 +1,9 @@
 {
   "source": "fc-csv",
   "dataVersion": "fc-csv-2026-06-21",
-  "generatedAt": "2026-06-21T10:48:39.437Z",
-  "totalClubs": 238,
-  "totalPlayers": 6446,
+  "generatedAt": "2026-06-21T11:01:47.130Z",
+  "totalClubs": 244,
+  "totalPlayers": 6573,
   "clubsPerLeague": {
     "premier-league": 20,
     "la-liga": 20,
@@ -15,7 +15,7 @@
     "super-lig": 18,
     "allsvenskan": 16,
     "super-league-gr": 4,
-    "brasileirao": 14,
+    "brasileirao": 20,
     "liga-argentina": 30,
     "primera-uruguay": 5,
     "primera-chile": 6,

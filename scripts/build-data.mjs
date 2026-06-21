@@ -140,6 +140,48 @@ function marketValue(ovr, age) {
   return Math.max(50_000, Math.round((base * ageFactor) / 50_000) * 50_000);
 }
 
+/**
+ * Mescla clubes do Brasileirão ausentes do dataset da EA (Bragantino, Santos, Mirassol,
+ * Ceará, Sport, Juventude). Elencos reais curados em scripts/data/brasileirao-extra.json,
+ * com subPos/ovr/idade calibrados à mão. reputação/orçamento são derivados no buildAndWrite.
+ */
+function addBrasileiraoExtra(clubMap) {
+  let extra;
+  try {
+    extra = JSON.parse(readFileSync(new URL('./data/brasileirao-extra.json', import.meta.url), 'utf8'));
+  } catch (err) {
+    console.warn(`Sem brasileirao-extra.json (${err.message}) — pulando clubes extras.`);
+    return;
+  }
+  let added = 0;
+  for (const [clubName, roster] of Object.entries(extra)) {
+    if (!Array.isArray(roster)) continue; // ignora chaves de comentário
+    const clubId = slug(clubName);
+    if (clubMap.has(clubId)) continue; // já veio do CSV — não duplica
+    const players = roster.map((p) => {
+      const ovr = clamp(Math.round(p.ovr), 40, 99);
+      const age = clamp(Math.round(p.age ?? 25), 15, 45);
+      const growth = age <= 21 ? 7 : age <= 24 ? 3 : 0;
+      return {
+        id: `${clubId}-${slug(p.name)}`,
+        name: p.name,
+        clubId,
+        nationality: p.nat ?? 'Brazil',
+        pos: POS_OF_SUBPOS[p.subPos] ?? 'MF',
+        subPos: p.subPos,
+        ovr,
+        pot: clamp(ovr + growth, ovr, 95),
+        age,
+        value: marketValue(ovr, age),
+        form: 0,
+      };
+    });
+    clubMap.set(clubId, { id: clubId, name: clubName, leagueId: 'brasileirao', players });
+    added += 1;
+  }
+  console.log(`+ Brasileirão suplementar: ${added} clube(s) real(is) adicionado(s).`);
+}
+
 // ----------------------------------------------------------------------------
 // Montagem final (compartilhada pelos dois modos)
 // ----------------------------------------------------------------------------
@@ -412,6 +454,7 @@ function processCsv(csvPath) {
         'com nomes reconhecíveis (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Brasileirão).',
     );
   }
+  addBrasileiraoExtra(clubMap);
   buildAndWrite(clubMap, 'fc-csv');
 }
 
