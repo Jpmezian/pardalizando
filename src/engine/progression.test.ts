@@ -62,10 +62,12 @@ describe('progressPlayer', () => {
 });
 
 describe('progressSeason', () => {
-  it('avança a temporada e mantém o clube do jogador intacto', () => {
+  it('avança a temporada, preserva os jogadores do clube e traz 1 joia da base', () => {
     const result = progressSeason(makeGame(), createRng(1));
     expect(result.currentSeason).toBe(2);
-    expect(result.clubs.me!.squad).toHaveLength(11);
+    // 11 originais preservados + 1 joia da academia.
+    expect(result.clubs.me!.squad).toHaveLength(12);
+    expect(result.clubs.me!.squad.some((id) => id.startsWith('youth-'))).toBe(true);
     expect(result.players.me0!.age).toBe(26);
   });
 

@@ -1,5 +1,8 @@
 import type { Club, GameState, Player, SubPos } from '@/types';
 import type { Rng } from './rng';
+import { ROSTER_LIMIT } from '@/config/economy';
+
+const YOUTH_POSITIONS: SubPos[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
 /** Progressão entre temporadas (spec §7): envelhecimento, evolução/declínio, IA leve. */
 
@@ -84,6 +87,28 @@ function makeRegen(club: Club, subPos: SubPos, rng: Rng, id: string): Player {
   };
 }
 
+/** Joia da base do clube: cru (OVR baixo) mas com potencial alto, bem jovem. */
+function makeYouth(club: Club, subPos: SubPos, rng: Rng, id: string): Player {
+  const target = reputationOvr(club.reputation);
+  const ovr = clamp(target - 14 + rng.int(0, 8), 48, 72);
+  const pot = clamp(ovr + rng.int(8, 22), ovr + 6, 91);
+  const age = 16 + rng.int(0, 2);
+  const first = REGEN_FIRST[rng.int(0, REGEN_FIRST.length - 1)]!;
+  const last = REGEN_LAST[rng.int(0, REGEN_LAST.length - 1)]!;
+  return {
+    id,
+    name: `${first} ${last}`,
+    clubId: club.id,
+    pos: posOfSubPos(subPos),
+    subPos,
+    ovr,
+    pot,
+    age,
+    value: playerValue(ovr, age),
+    form: rng.int(-3, 3),
+  };
+}
+
 const RETIREMENT_AGE = 35;
 const MAX_REGENS_PER_CLUB = 3;
 
@@ -125,6 +150,15 @@ export function progressSeason(game: GameState, rng: Rng): AdvancedState {
       club.squad[i] = regenId;
       regens += 1;
     }
+  }
+
+  // Academia do clube do usuário: 1 joia da base por temporada (se houver espaço).
+  const managedClub = game.managedClubId ? clubs[game.managedClubId] : undefined;
+  if (managedClub && managedClub.squad.length < ROSTER_LIMIT) {
+    const subPos = YOUTH_POSITIONS[rng.int(0, YOUTH_POSITIONS.length - 1)]!;
+    const youthId = `youth-${game.currentSeason}-${managedClub.id}`;
+    players[youthId] = makeYouth(managedClub, subPos, rng, youthId);
+    managedClub.squad = [...managedClub.squad, youthId];
   }
 
   return { players, clubs, currentSeason: game.currentSeason + 1 };
