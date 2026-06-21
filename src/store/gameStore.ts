@@ -390,7 +390,7 @@ interface GameStore {
   clearPull: () => void;
   spinRoulette: (spinId: string) => void;
   clearSpin: () => void;
-  advanceSeason: () => void;
+  advanceSeason: (destination?: 'squad' | 'market') => void;
   clearTransfers: () => void;
   goToHistory: () => void;
   goToLeagueView: () => void;
@@ -881,7 +881,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       set({ lastTransfers: null });
     },
 
-    advanceSeason() {
+    advanceSeason(destination = 'squad') {
       const { game, lastSeason, lastCups, lastInjuries } = get();
       if (!game?.managedClubId || !lastSeason) return;
       const managedId = game.managedClubId;
@@ -985,7 +985,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         lastCups: null,
         lastInjuries: null,
         lastTransfers: progressed.transfers,
-        screen: verdict.fired ? 'fired' : 'squad',
+        screen: verdict.fired ? 'fired' : destination,
       });
       void persistGame(next);
     },

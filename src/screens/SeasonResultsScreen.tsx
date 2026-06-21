@@ -24,11 +24,11 @@ export function SeasonResultsScreen(): JSX.Element {
   const season = useGameStore((state) => state.lastSeason);
   const cups = useGameStore((state) => state.lastCups);
   const injuries = useGameStore((state) => state.lastInjuries);
-  const goToMarket = useGameStore((state) => state.goToMarket);
   const advanceSeason = useGameStore((state) => state.advanceSeason);
   const backToLineup = useGameStore((state) => state.backToLineup);
   const [tab, setTab] = useState<ResultsTab>('table');
   const [confirmAdvance, setConfirmAdvance] = useState(false);
+  const [pendingDest, setPendingDest] = useState<'squad' | 'market'>('squad');
   const [trebleSeen, setTrebleSeen] = useState(false);
 
   const managedClub = game?.managedClubId ? game.clubs[game.managedClubId] : undefined;
@@ -252,12 +252,14 @@ export function SeasonResultsScreen(): JSX.Element {
         {confirmAdvance ? (
           <div className="mt-6 border border-line bg-surface p-4">
             <p className="font-sans text-sm text-ink-muted">
-              Avançar fecha a temporada de vez — aplica progressão, lesões e mercado da IA, e{' '}
-              <span className="text-ink">não dá pra voltar atrás</span>. Confirmar?
+              Avançar credita a premiação ({formatMoney(rewards.budget)}
+              {rewards.tickets > 0 ? ` + ${rewards.tickets} ficha(s)` : ''}), aplica progressão,
+              lesões e mercado da IA, e <span className="text-ink">não dá pra voltar atrás</span>.
+              {pendingDest === 'market' ? ' Você cai direto no mercado.' : ''} Confirmar?
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <BroadcastButton variant="primary" onClick={advanceSeason}>
-                Confirmar avanço
+              <BroadcastButton variant="primary" onClick={() => advanceSeason(pendingDest)}>
+                {pendingDest === 'market' ? 'Confirmar e ir ao mercado' : 'Confirmar avanço'}
               </BroadcastButton>
               <BroadcastButton variant="ghost" onClick={() => setConfirmAdvance(false)}>
                 Cancelar
@@ -266,17 +268,29 @@ export function SeasonResultsScreen(): JSX.Element {
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-            <BroadcastButton variant="primary" onClick={() => setConfirmAdvance(true)}>
+            <BroadcastButton
+              variant="primary"
+              onClick={() => {
+                setPendingDest('squad');
+                setConfirmAdvance(true);
+              }}
+            >
               Avançar para a próxima temporada
             </BroadcastButton>
-            <BroadcastButton variant="ghost" onClick={goToMarket}>
-              Ir ao mercado
+            <BroadcastButton
+              variant="ghost"
+              onClick={() => {
+                setPendingDest('market');
+                setConfirmAdvance(true);
+              }}
+            >
+              Avançar e ir ao mercado
             </BroadcastButton>
           </div>
         )}
         <p className="mt-4 text-center font-sans text-xs text-ink-faint">
-          Ao avançar: todos envelhecem, jovens evoluem, veteranos declinam, e você recebe a receita
-          da temporada.
+          Ao avançar: você recebe a premiação da temporada, todos envelhecem, jovens evoluem e
+          veteranos declinam.
         </p>
       </main>
     </div>
