@@ -204,6 +204,8 @@ interface GameStore {
   friendlyCount: number;
   /** Contador transiente de aberturas de pacote — varia o sorteio. */
   pullCount: number;
+  /** Contador de simulações de temporada — cada simulação re-rola liga/copas/prêmios. */
+  seasonSimCount: number;
   hasSave: boolean;
   saveChecked: boolean;
 
@@ -252,10 +254,13 @@ export const useGameStore = create<GameStore>((set, get) => {
 
   /** Simula a temporada e leva pra tela alvo (resultado instantâneo ou replay). */
   function runSeasonInto(targetScreen: Screen): void {
-    const { game } = get();
+    const { game, seasonSimCount } = get();
     if (!game?.managedClubId || !game.lineup) return;
 
-    const rng = createRng(seedFromString(`${game.seed}:season:${game.currentSeason}`));
+    // Nonce por simulação: cada "Simular Temporada" re-rola tudo (liga/copas/prêmios),
+    // mesmo re-simulando a mesma temporada — antes a seed era fixa e dava sempre igual.
+    const nonce = seasonSimCount;
+    const rng = createRng(seedFromString(`${game.seed}:season:${game.currentSeason}:${nonce}`));
     const outcome = runSeason(game, game.lineup, rng);
 
     const players = { ...game.players };
@@ -264,7 +269,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (player) players[playerId] = { ...player, seasonStats };
     }
 
-    const cupRng = createRng(seedFromString(`${game.seed}:cups:${game.currentSeason}`));
+    const cupRng = createRng(seedFromString(`${game.seed}:cups:${game.currentSeason}:${nonce}`));
     const national = simulateKnockout(nationalCupEntrants(game, game.lineup), cupRng);
     const champions = simulateCompetition(continentalField(game, game.lineup, 'europe'), cupRng);
     const libertadores = simulateCompetition(
@@ -272,7 +277,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       cupRng,
     );
 
-    const injuryRng = createRng(seedFromString(`${game.seed}:injuries:${game.currentSeason}`));
+    const injuryRng = createRng(seedFromString(`${game.seed}:injuries:${game.currentSeason}:${nonce}`));
     const managed = game.clubs[game.managedClubId];
     const managedSquad = managed
       ? managed.squad
@@ -288,6 +293,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       lastCups: { national, champions, libertadores },
       lastInjuries: injuries,
       screen: targetScreen,
+      seasonSimCount: nonce + 1,
     });
     void persistGame(next);
   }
@@ -307,6 +313,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     clubReturnScreen: 'squad',
     friendlyCount: 0,
     pullCount: 0,
+    seasonSimCount: 0,
     hasSave: false,
     saveChecked: false,
 
