@@ -24,6 +24,11 @@ const OUT_DIR = resolve(HERE, '../src/data/generated');
 const MAX_SQUAD = 30; // teto de jogadores por clube (controla tamanho do JSON)
 const MIN_SQUAD = 11; // clube com menos que isto é descartado (elenco incompleto)
 
+/** Ajustes manuais de OVR/POT por id de jogador — sobrevivem à regeneração do dataset. */
+const PLAYER_OVERRIDES = {
+  'p-247827': { ovr: 90, pot: 95 }, // M. Olise (Bayern)
+};
+
 /** @type {{ id: string, name: string, code: string }[]} */
 const LEAGUES = [
   { id: 'premier-league', name: 'Premier League', code: 'ENG' },
@@ -428,6 +433,9 @@ function processCsv(csvPath) {
     if (!clubMap.has(clubId)) {
       clubMap.set(clubId, { id: clubId, name: clubName, leagueId, players: [] });
     }
+    const override = PLAYER_OVERRIDES[id];
+    const ovrFinal = clamp(override?.ovr ?? ovr, 40, 99);
+    const potFinal = clamp(Math.max(override?.pot ?? pot, ovrFinal), 40, 99);
     clubMap.get(clubId).players.push({
       id,
       name,
@@ -435,10 +443,10 @@ function processCsv(csvPath) {
       ...(nationality ? { nationality } : {}),
       pos,
       subPos,
-      ovr: clamp(ovr, 40, 99),
-      pot: clamp(Math.max(pot, ovr), 40, 99),
+      ovr: ovrFinal,
+      pot: potFinal,
       age: clamp(age, 15, 45),
-      value,
+      value: override ? marketValue(ovrFinal, clamp(age, 15, 45)) : value,
       form: 0,
     });
   }
