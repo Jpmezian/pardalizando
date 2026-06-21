@@ -1,9 +1,9 @@
 {
   "source": "fc-csv",
   "dataVersion": "fc-csv-2026-06-21",
-  "generatedAt": "2026-06-21T11:01:47.130Z",
+  "generatedAt": "2026-06-21T11:51:20.914Z",
   "totalClubs": 244,
-  "totalPlayers": 6573,
+  "totalPlayers": 6595,
   "clubsPerLeague": {
     "premier-league": 20,
     "la-liga": 20,

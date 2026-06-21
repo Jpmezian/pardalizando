@@ -157,7 +157,8 @@ function addBrasileiraoExtra(clubMap) {
   for (const [clubName, roster] of Object.entries(extra)) {
     if (!Array.isArray(roster)) continue; // ignora chaves de comentário
     const clubId = slug(clubName);
-    if (clubMap.has(clubId)) continue; // já veio do CSV — não duplica
+    // Sobrescreve o clube do CSV quando existir (no Brasileirão a EA só tem nomes
+    // genéricos por falta de licença) — aqui entram os elencos reais.
     const players = roster.map((p) => {
       const ovr = clamp(Math.round(p.ovr), 40, 99);
       const age = clamp(Math.round(p.age ?? 25), 15, 45);
