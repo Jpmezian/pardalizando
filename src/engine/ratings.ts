@@ -60,27 +60,44 @@ export function teamStrength(slots: FilledSlot[]): SectorStrength {
   };
 }
 
-/** Escolhe o melhor XI (guloso por slot) de um elenco para uma lista de posições. */
+/**
+ * Escolhe o melhor XI para uma lista de posições, em duas fases para respeitar
+ * a posição natural dos jogadores:
+ *   1. Cada slot recebe o melhor jogador cuja posição natural É exatamente a do slot
+ *      (zagueiro joga de zagueiro, ponta de ponta — nada de estrela fora de posição).
+ *   2. Os slots que sobraram (sem jogador natural) são preenchidos pelo melhor OVR
+ *      efetivo disponível, aceitando improviso com a penalidade de posição.
+ * Determinístico e estável: o mesmo elenco sempre gera o mesmo XI.
+ */
 export function pickBestXI(players: Player[], slotPositions: SubPos[]): FilledSlot[] {
   const used = new Set<string>();
-  const filled: FilledSlot[] = [];
+  const result: (FilledSlot | null)[] = slotPositions.map(() => null);
 
-  for (const subPos of slotPositions) {
-    let best: Player | null = null;
-    let bestScore = -Infinity;
-    for (const player of players) {
-      if (used.has(player.id)) continue;
-      const score = effectiveOvr(player, subPos);
-      if (score > bestScore) {
-        bestScore = score;
-        best = player;
+  const fillFrom = (eligible: (player: Player, subPos: SubPos) => boolean): void => {
+    for (let i = 0; i < slotPositions.length; i += 1) {
+      if (result[i]) continue;
+      const subPos = slotPositions[i];
+      let best: Player | null = null;
+      let bestScore = -Infinity;
+      for (const player of players) {
+        if (used.has(player.id) || !eligible(player, subPos)) continue;
+        const score = effectiveOvr(player, subPos);
+        if (score > bestScore) {
+          bestScore = score;
+          best = player;
+        }
+      }
+      if (best) {
+        used.add(best.id);
+        result[i] = { subPos, player: best };
       }
     }
-    if (best) {
-      used.add(best.id);
-      filled.push({ subPos, player: best });
-    }
-  }
+  };
 
-  return filled;
+  // Fase 1: só jogadores na sua posição natural.
+  fillFrom((player, subPos) => player.subPos === subPos);
+  // Fase 2: preenche o resto com o melhor improviso disponível.
+  fillFrom(() => true);
+
+  return result.filter((slot): slot is FilledSlot => slot !== null);
 }

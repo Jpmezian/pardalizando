@@ -52,9 +52,10 @@ export function StartScreen(): JSX.Element {
             Temporada 25/26 · Modo carreira
           </p>
 
-          <h1 className="font-display font-extrabold uppercase leading-[0.82] tracking-tight">
-            <span className="block text-[clamp(3rem,11vw,8.5rem)] text-ink">Pardal</span>
-            <span className="block text-[clamp(3rem,11vw,8.5rem)] text-accent">izando</span>
+          <h1 className="font-display font-extrabold uppercase leading-none tracking-tight">
+            <span className="block whitespace-nowrap text-[clamp(2.25rem,12vw,7rem)] text-accent">
+              Pardalizando
+            </span>
           </h1>
 
           <p className="mt-7 max-w-md font-sans text-lg leading-relaxed text-ink-muted">

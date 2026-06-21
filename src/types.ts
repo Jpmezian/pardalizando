@@ -57,6 +57,8 @@ export interface Player {
   id: string;
   name: string;
   clubId: string;
+  /** País do jogador (ex.: "Brazil"), quando disponível no dataset. */
+  nationality?: string;
   pos: Position;
   subPos: SubPos;
   /** Overall 40–99 (número próprio do jogo, não "oficial"). */

@@ -1,6 +1,6 @@
-import type { Club, FormationId, GameState, Lineup, Player } from '@/types';
+import type { Club, FormationId, GameState, Lineup, LineupSlot, Player } from '@/types';
 import { formationSubPositions } from './formations';
-import { pickBestXI, teamStrength, type FilledSlot, type SectorStrength } from './ratings';
+import { effectiveOvr, pickBestXI, teamStrength, type FilledSlot, type SectorStrength } from './ratings';
 
 /** Helpers que ligam o GameState ao motor de ratings. Puros, sem React. */
 
@@ -32,6 +32,55 @@ export function buildLineup(game: GameState, clubId: string, formationId: Format
     slots: xi.map((slot) => ({ subPos: slot.subPos, playerId: slot.player.id })),
     bench,
   };
+}
+
+/**
+ * Mantém a escalação escolhida pelo usuário ao virar a temporada: preserva a
+ * formação e cada jogador que ainda está no elenco e disponível; só os slots
+ * de quem saiu/lesionou são repreenchidos com o melhor disponível. Evita que a
+ * escalação "mude sozinha" só porque os overalls progrediram.
+ */
+export function reconcileLineup(game: GameState, clubId: string, previous: Lineup): Lineup {
+  const club = game.clubs[clubId];
+  if (!club) return previous;
+
+  const available = clubPlayers(game, club).filter((player) => !player.injuredSeasons);
+  const availableById = new Map(available.map((player) => [player.id, player]));
+  const used = new Set<string>();
+
+  const slots: LineupSlot[] = previous.slots.map((slot) => {
+    if (slot.playerId && availableById.has(slot.playerId) && !used.has(slot.playerId)) {
+      used.add(slot.playerId);
+      return { subPos: slot.subPos, playerId: slot.playerId };
+    }
+    return { subPos: slot.subPos, playerId: null };
+  });
+
+  for (const slot of slots) {
+    if (slot.playerId) continue;
+    let best: Player | null = null;
+    let bestScore = -Infinity;
+    for (const player of available) {
+      if (used.has(player.id)) continue;
+      const score = effectiveOvr(player, slot.subPos);
+      if (score > bestScore) {
+        bestScore = score;
+        best = player;
+      }
+    }
+    if (best) {
+      used.add(best.id);
+      slot.playerId = best.id;
+    }
+  }
+
+  const bench = available
+    .filter((player) => !used.has(player.id))
+    .sort((a, b) => b.ovr - a.ovr)
+    .slice(0, BENCH_SIZE)
+    .map((player) => player.id);
+
+  return { formation: previous.formation, slots, bench };
 }
 
 export function lineupFilledSlots(game: GameState, lineup: Lineup): FilledSlot[] {

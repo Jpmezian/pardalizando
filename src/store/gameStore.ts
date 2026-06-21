@@ -25,7 +25,7 @@ import { createRng, seedFromString } from '@/engine/rng';
 import { pickBestXI, teamStrength, type SectorStrength } from '@/engine/ratings';
 import { formationSubPositions } from '@/engine/formations';
 import { simulateMatch } from '@/engine/match';
-import { buildLineup, clubStrength, lineupStrength } from '@/engine/lineup';
+import { buildLineup, clubStrength, lineupStrength, reconcileLineup } from '@/engine/lineup';
 import { simulateSeason as runSeason, type SeasonOutcome } from '@/engine/season';
 import { simulateKnockout, type CupEntrant, type CupResult } from '@/engine/cup';
 import { simulateCompetition, type CompetitionResult } from '@/engine/competition';
@@ -646,8 +646,10 @@ export const useGameStore = create<GameStore>((set, get) => {
         packs,
         history,
       };
-      // Recompõe o XI da nova temporada (sem lesionados, banco refeito).
-      const newLineup = buildLineup(baseGame, managedId, game.lineup?.formation ?? '4-3-3');
+      // Preserva a escalação do usuário (só repõe quem saiu/lesionou); banco refeito.
+      const newLineup = game.lineup
+        ? reconcileLineup(baseGame, managedId, game.lineup)
+        : buildLineup(baseGame, managedId, '4-3-3');
       const next: GameState = { ...baseGame, lineup: newLineup };
 
       set({ game: next, lastSeason: null, lastCups: null, lastInjuries: null, screen: 'squad' });

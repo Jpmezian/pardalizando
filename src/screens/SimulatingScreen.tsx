@@ -46,14 +46,6 @@ export function SimulatingScreen(): JSX.Element {
       <p className="mt-2 font-sans text-xs uppercase tracking-broadcast text-ink-faint">
         Simulando a temporada
       </p>
-
-      <button
-        type="button"
-        onClick={finishSimulating}
-        className="mt-10 border border-line px-5 py-2 font-sans text-sm font-semibold uppercase tracking-broadcast text-ink-muted transition-colors duration-150 hover:border-ink-faint hover:text-ink"
-      >
-        Pular
-      </button>
     </div>
   );
 }

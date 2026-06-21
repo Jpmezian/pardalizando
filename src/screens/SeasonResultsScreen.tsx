@@ -419,8 +419,18 @@ function AwardsTab({ game, season }: SeasonContentProps): JSX.Element {
               title={player.name}
               subtitle={awardSubtitle(def.key, player, stats)}
             />
+            <p className="mt-1.5 text-center font-sans text-xs text-ink-muted">
+              <ClubLink
+                clubId={player.clubId}
+                name={clubName(game, player.clubId)}
+                className="font-semibold text-ink"
+              />
+              {player.nationality ? (
+                <span className="text-ink-faint"> · {player.nationality}</span>
+              ) : null}
+            </p>
             {player.clubId === game.managedClubId ? (
-              <p className="mt-1 text-center font-sans text-xs uppercase tracking-broadcast text-accent">
+              <p className="mt-0.5 text-center font-sans text-xs uppercase tracking-broadcast text-accent">
                 Do seu time
               </p>
             ) : null}

@@ -317,6 +317,7 @@ function processCsv(csvPath) {
     overall: pickColumn(header, ['overall', 'ovr', 'overall_rating', 'rating']),
     potential: pickColumn(header, ['potential', 'pot']),
     positions: pickColumn(header, ['player_positions', 'positions', 'position', 'best_position']),
+    nationality: pickColumn(header, ['nationality_name', 'nationality', 'nation', 'country', 'country_name']),
     age: pickColumn(header, ['age']),
     dob: pickColumn(header, ['dob', 'birth_date']),
     club: pickColumn(header, ['club_name', 'club', 'club_team_name', 'team_name', 'team']),
@@ -355,6 +356,7 @@ function processCsv(csvPath) {
     const subPos = normalizeSubPos(cells[col.positions] ?? '');
     const pos = POS_OF_SUBPOS[subPos];
     const name = (cells[col.name] ?? '').trim() || 'Desconhecido';
+    const nationality = col.nationality !== -1 ? (cells[col.nationality] ?? '').trim() : '';
 
     let age = col.age !== -1 ? Math.round(Number(cells[col.age])) : NaN;
     if (!Number.isFinite(age) && col.dob !== -1) {
@@ -386,6 +388,7 @@ function processCsv(csvPath) {
       id,
       name,
       clubId,
+      ...(nationality ? { nationality } : {}),
       pos,
       subPos,
       ovr: clamp(ovr, 40, 99),
