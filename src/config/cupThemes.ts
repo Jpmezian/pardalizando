@@ -10,12 +10,14 @@ export type CupKey =
 export type CupMotif = 'star' | 'shield' | 'globe' | 'cup';
 
 /**
- * Identidade visual de cada competição — cores que evocam o visual real (sem usar
- * logos/marcas). Tudo em OKLCH. Aplicado no cinematic do jogo de copa.
+ * Identidade visual de cada competição — cores/brasão que evocam o visual real
+ * (sem usar logos/marcas). Tudo em OKLCH. Aplicado no cinematic do jogo de copa.
  */
 export interface CupTheme {
   label: string;
-  /** Cor de fundo dominante da competição. */
+  /** Subtítulo curto pra reforçar a identidade (ex.: "Glória eterna"). */
+  tagline: string;
+  /** Cor de fundo dominante (escura) da competição. */
   bg: string;
   /** Acento/destaque da competição. */
   accent: string;
@@ -25,60 +27,92 @@ export interface CupTheme {
 }
 
 export const CUP_THEMES: Record<CupKey, CupTheme> = {
-  // Champions: azul-noite estrelado.
+  // Champions League: azul-noite + prata (a "starball").
   champions: {
-    label: 'Champions',
-    bg: 'oklch(0.22 0.09 265)',
-    accent: 'oklch(0.86 0.06 255)',
-    accentInk: 'oklch(0.2 0.08 265)',
+    label: 'UEFA Champions League',
+    tagline: 'A noite mais alta da Europa',
+    bg: 'oklch(0.19 0.07 264)',
+    accent: 'oklch(0.91 0.03 250)',
+    accentInk: 'oklch(0.19 0.07 264)',
     motif: 'star',
   },
-  // Europa League: laranja sobre preto.
+  // Europa League: laranja vivo sobre preto.
   europa: {
-    label: 'Europa League',
-    bg: 'oklch(0.2 0.02 60)',
-    accent: 'oklch(0.74 0.18 55)',
-    accentInk: 'oklch(0.18 0.04 60)',
+    label: 'UEFA Europa League',
+    tagline: 'Quinta-feira é dia de Europa',
+    bg: 'oklch(0.17 0.02 48)',
+    accent: 'oklch(0.72 0.19 50)',
+    accentInk: 'oklch(0.17 0.03 48)',
     motif: 'star',
   },
-  // Conference League: verde elétrico.
+  // Conference League: verde-limão elétrico.
   conference: {
-    label: 'Conference League',
-    bg: 'oklch(0.24 0.06 165)',
-    accent: 'oklch(0.82 0.18 160)',
-    accentInk: 'oklch(0.2 0.05 165)',
+    label: 'UEFA Conference League',
+    tagline: 'O caminho começa aqui',
+    bg: 'oklch(0.21 0.05 168)',
+    accent: 'oklch(0.84 0.19 150)',
+    accentInk: 'oklch(0.2 0.05 168)',
     motif: 'shield',
   },
-  // Libertadores: dourado/glória sul-americana.
+  // Libertadores: PRETO + OURO, a glória eterna.
   libertadores: {
-    label: 'Libertadores',
-    bg: 'oklch(0.24 0.05 95)',
-    accent: 'oklch(0.83 0.16 92)',
-    accentInk: 'oklch(0.2 0.05 95)',
+    label: 'CONMEBOL Libertadores',
+    tagline: 'A glória eterna',
+    bg: 'oklch(0.16 0.02 92)',
+    accent: 'oklch(0.82 0.16 90)',
+    accentInk: 'oklch(0.16 0.03 92)',
     motif: 'cup',
   },
-  // Sudamericana: laranja-avermelhado.
+  // Sudamericana: laranja-avermelhado sobre carvão.
   sudamericana: {
-    label: 'Sudamericana',
-    bg: 'oklch(0.22 0.04 40)',
-    accent: 'oklch(0.72 0.19 40)',
-    accentInk: 'oklch(0.18 0.04 40)',
+    label: 'CONMEBOL Sudamericana',
+    tagline: 'A outra metade do continente',
+    bg: 'oklch(0.18 0.04 38)',
+    accent: 'oklch(0.71 0.2 38)',
+    accentInk: 'oklch(0.17 0.04 38)',
     motif: 'shield',
   },
-  // Mundial de Clubes: ouro sobre carvão.
+  // Mundial de Clubes: ouro sobre azul profundo.
   mundial: {
     label: 'Mundial de Clubes',
-    bg: 'oklch(0.2 0.03 90)',
-    accent: 'oklch(0.85 0.15 90)',
-    accentInk: 'oklch(0.18 0.04 90)',
+    tagline: 'O melhor do planeta',
+    bg: 'oklch(0.19 0.06 252)',
+    accent: 'oklch(0.84 0.15 88)',
+    accentInk: 'oklch(0.18 0.05 252)',
     motif: 'globe',
   },
-  // Copa Nacional: identidade de transmissão (verde-gramado).
+  // Copa nacional: vermelho-drama de mata-mata (o NOME muda por país).
   national: {
     label: 'Copa Nacional',
-    bg: 'oklch(0.2 0.014 255)',
-    accent: 'oklch(0.86 0.19 128)',
-    accentInk: 'oklch(0.22 0.06 132)',
-    motif: 'cup',
+    tagline: 'Mata-mata: quem vacila, cai',
+    bg: 'oklch(0.19 0.04 22)',
+    accent: 'oklch(0.66 0.2 25)',
+    accentInk: 'oklch(0.97 0.01 25)',
+    motif: 'shield',
   },
 };
+
+/** Nome real da copa nacional por liga — pra não ficar tudo "Copa Nacional". */
+const NATIONAL_CUP_NAMES: Record<string, string> = {
+  'premier-league': 'FA Cup',
+  'la-liga': 'Copa del Rey',
+  'serie-a': 'Coppa Italia',
+  bundesliga: 'DFB-Pokal',
+  'ligue-1': 'Coupe de France',
+  eredivisie: 'KNVB Beker',
+  'primeira-liga': 'Taça de Portugal',
+  'super-lig': 'Türkiye Kupası',
+  allsvenskan: 'Svenska Cupen',
+  'super-league-gr': 'Copa da Grécia',
+  brasileirao: 'Copa do Brasil',
+  'liga-argentina': 'Copa Argentina',
+  'primera-uruguay': 'Copa Uruguay',
+  'primera-chile': 'Copa Chile',
+  'primera-venezuela': 'Copa Venezuela',
+  'primera-colombia': 'Copa Colombia',
+  'primera-paraguay': 'Copa Paraguay',
+};
+
+export function nationalCupName(leagueId: string | undefined): string {
+  return (leagueId && NATIONAL_CUP_NAMES[leagueId]) || 'Copa Nacional';
+}

@@ -285,6 +285,22 @@ body {
   animation: cup-modal-in 200ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
 }
 
+/* Entrada do card de abertura da copa. */
+@keyframes cup-intro {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.cup-intro {
+  animation: cup-intro 360ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .signal-dot,
   .pack-pop,
@@ -297,6 +313,7 @@ body {
   .cup-flash,
   .cup-march,
   .cup-modal-in,
+  .cup-intro,
   .ball-spin {
     animation: none;
   }

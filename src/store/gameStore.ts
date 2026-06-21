@@ -32,7 +32,7 @@ import {
   reconcileLineup,
 } from '@/engine/lineup';
 import { buildMatchPlay, type MatchPlay, type Side } from '@/engine/matchPlay';
-import { CUP_THEMES, type CupKey, type CupTheme } from '@/config/cupThemes';
+import { CUP_THEMES, nationalCupName, type CupKey, type CupTheme } from '@/config/cupThemes';
 import { simulateSeason as runSeason, type SeasonOutcome } from '@/engine/season';
 import { simulateKnockout, type CupEntrant, type CupResult, type CupRound } from '@/engine/cup';
 import { simulateCompetition, type CompetitionResult } from '@/engine/competition';
@@ -228,9 +228,15 @@ function makeCupMatchView(
   const managedSide: Side | null =
     match.homeId === game.managedClubId ? 'home' : match.awayId === game.managedClubId ? 'away' : null;
   const colors = teamColorPair(match.homeId, match.awayId);
+  const base = CUP_THEMES[competition];
+  // A copa nacional ganha o nome real do país (Copa do Brasil, FA Cup…).
+  const theme: CupTheme =
+    competition === 'national'
+      ? { ...base, label: nationalCupName(game.clubs[match.homeId]?.leagueId) }
+      : base;
   return {
     play,
-    theme: CUP_THEMES[competition],
+    theme,
     roundName,
     managedSide,
     homeColor: colors.home,
